@@ -11,7 +11,7 @@ import SwiftUI
 struct diplomaApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            WeeklyCalendarView()
         }
     }
 }
