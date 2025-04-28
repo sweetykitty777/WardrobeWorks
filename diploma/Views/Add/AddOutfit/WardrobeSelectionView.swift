@@ -91,7 +91,6 @@ struct WardrobeSelectionView: View {
         }
     }
 
-    /// ✅ Добавляем вещь и закрываем экран
     private func addItemAndClose(_ item: ClothingItem) {
         selectedItems.append(OutfitItem(
             name: item.name,

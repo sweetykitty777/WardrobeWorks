@@ -1,55 +1,37 @@
 import SwiftUI
 
 struct CollectionsView: View {
-    @State private var collections: [Collection] = MockData.collections
+    @State private var collections: [LookbookResponse] = []
     @State private var showingNewCollectionSheet = false
-    @State private var editingCollectionID: UUID?
+    @State private var editingCollection: LookbookResponse? = nil
+    
+    var wardrobeId: Int
 
     var body: some View {
         NavigationView {
-            VStack {
-                List {
-                    ForEach($collections, id: \.id) { $collection in
-                        HStack {
-                            if editingCollectionID == collection.id {
-                                TextField("Название лукбука", text: $collection.name, onCommit: {
-                                    editingCollectionID = nil
-                                })
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.trailing, 10)
-
-                                Button(action: {
-                                    editingCollectionID = nil
-                                    hideKeyboard()
-                                }) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            } else {
-
-                                NavigationLink(destination: CollectionDetailView(collection: $collection)) {
-                                    Text(collection.name)
-                                        .font(.headline)
-                                        .padding(.vertical, 5)
-                                }
-
-                                Spacer()
-
-                                Button(action: {
-                                    editingCollectionID = collection.id
-                                }) {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .foregroundColor(.blue)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
+            VStack(spacing: 0) {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(collections, id: \.id) { collection in
+                            NavigationLink {
+                                LookbookDetailView(lookbook: collection, wardrobeId: wardrobeId)
+                            } label: {
+                                LookbookListItemView(
+                                    title: collection.name,
+                                    subtitle: collection.description,
+                                    onEdit: {
+                                        editingCollection = collection
+                                    }
+                                )
+                                .padding(.horizontal)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
-                    .onDelete { indexSet in
-                        collections.remove(atOffsets: indexSet)
-                    }
+                    .padding(.top)
                 }
-                .listStyle(PlainListStyle())
+
+                Divider()
 
                 Button(action: {
                     showingNewCollectionSheet = true
@@ -63,14 +45,43 @@ struct CollectionsView: View {
                     .padding()
                 }
             }
-            .sheet(isPresented: $showingNewCollectionSheet) {
-                NewCollectionView(collections: $collections, isPresented: $showingNewCollectionSheet)
+            .navigationBarHidden(true)
+            .onAppear {
+                fetchLookbooks(for: wardrobeId)
             }
         }
+        .sheet(isPresented: $showingNewCollectionSheet) {
+            NewCollectionView(
+                onCreate: {
+                    fetchLookbooks(for: wardrobeId)
+                },
+                isPresented: $showingNewCollectionSheet
+            )
+        }
+        .sheet(item: $editingCollection) { collection in
+            EditLookbookView(
+                lookbookId: collection.id,
+                initialName: collection.name,
+                initialDescription: collection.description,
+                onSave: {
+                    fetchLookbooks(for: wardrobeId)
+                },
+                onDelete: {
+                    fetchLookbooks(for: wardrobeId)
+                }
+            )
+        }
+
     }
 
-
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    private func fetchLookbooks(for wardrobeId: Int) {
+        LookbookService.shared.fetchLookbooks(for: wardrobeId) { result in
+            switch result {
+            case .success(let fetched):
+                collections = fetched
+            case .failure(let error):
+                print("Ошибка загрузки лукбуков: \(error)")
+            }
+        }
     }
 }

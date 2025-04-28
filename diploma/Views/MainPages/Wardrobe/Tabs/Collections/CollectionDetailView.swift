@@ -7,7 +7,7 @@ struct CollectionDetailView: View {
 
     var body: some View {
         VStack {
-            HStack {
+            /*HStack {
                 Button("Добавить аутфиты") {
                     showingOutfitPicker = true
                 }
@@ -35,15 +35,15 @@ struct CollectionDetailView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
-            }
+            }*/
         }
-        .sheet(isPresented: $showingOutfitPicker) {
+      /*  .sheet(isPresented: $showingOutfitPicker) {
             OutfitPickerView(selectedOutfits: $selectedOutfits, onAdd: {
                 collection.outfits.append(contentsOf: selectedOutfits)
             })
         }
         .navigationTitle(collection.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)*/
     }
 
     private func hideKeyboard() {

@@ -13,7 +13,7 @@ struct DaysScrollView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 10) {
+            LazyHStack(spacing: 0) {
                 ForEach(viewModel.currentWeek, id: \.date) { day in
                     dayView(for: day)
                 }

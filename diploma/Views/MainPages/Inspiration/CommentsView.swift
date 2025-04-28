@@ -1,32 +1,74 @@
+// CommentsView.swift
 import SwiftUI
 
 struct CommentsView: View {
-    @Binding var post: Post
-    @State private var newComment: String = ""
+    @StateObject private var viewModel: CommentsViewModel
+
+    init(postId: Int) {
+        _viewModel = StateObject(wrappedValue: CommentsViewModel(postId: postId))
+    }
 
     var body: some View {
-        NavigationView {
-            VStack {
-                List(post.comments, id: \.self) { comment in
-                    Text(comment)
-                        .padding()
-                }
+        VStack {
+            if viewModel.isLoading {
+                ProgressView("Загрузка…")
+                    .padding()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.comments) { comment in
+                            HStack(alignment: .top, spacing: 12) {
+                                if let avatar = comment.user.avatar {
+                                    RemoteImageView(
+                                        urlString: avatar,
+                                        cornerRadius: 20,
+                                        width: 40,
+                                        height: 40
+                                    )
+                                } else {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 40, height: 40)
+                                        .foregroundColor(.gray)
+                                }
 
-                HStack {
-                    TextField("Добавить комментарий...", text: $newComment)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("@\(comment.user.username)")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    Text(comment.text)
+                                        .font(.body)
+                                    Text(comment.createdAt)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
 
-                    Button("Отправить") {
-                        if !newComment.isEmpty {
-                            post.comments.append(newComment) 
-                            newComment = ""
+                                Spacer()
+
+                                Button(role: .destructive) {
+                                    viewModel.deleteComment(comment.id)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                            }
+                            .padding(.horizontal)
                         }
                     }
+                    .padding(.top)
                 }
-                .padding()
             }
-            .navigationTitle("Комментарии")
-            .navigationBarTitleDisplayMode(.inline)
+
+            Divider()
+
+            HStack {
+                TextField("Добавить комментарий…", text: $viewModel.newCommentText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                Button("Отправить") {
+                    viewModel.addComment()
+                }
+                .disabled(viewModel.newCommentText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding()
         }
     }
 }

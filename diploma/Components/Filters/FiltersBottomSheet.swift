@@ -9,11 +9,7 @@ struct FiltersBottomSheet: View {
     @Binding var selectedSeasons: Set<String>
     @Binding var selectedPriceRanges: Set<String>
 
-    let categories = ["Брюки", "Верх", "Обувь", "Аксессуары", "Платья", "Рубашки"]
-    let brands = ["Nike", "Adidas", "Gucci", "Zara"]
-    let colors = ["Красный", "Синий", "Чёрный", "Белый", "Зелёный", "Жёлтый"]
-    let seasons = ["Лето", "Зима", "Осень", "Весна"]
-    let priceRanges = ["До 1000 ₽", "1000-5000 ₽", "5000-10000 ₽", "10000+ ₽"]
+    @StateObject private var viewModel = FilterOptionsViewModel()
 
     var body: some View {
         VStack(spacing: 20) {
@@ -28,11 +24,11 @@ struct FiltersBottomSheet: View {
 
             ScrollView {
                 VStack(spacing: 15) {
-                    FilterSection(title: "Категория", options: categories, selectedOptions: $selectedCategories)
-                    FilterSection(title: "Цвет", options: colors, selectedOptions: $selectedColors)
-                    FilterSection(title: "Сезон", options: seasons, selectedOptions: $selectedSeasons)
-                    FilterSection(title: "Бренд", options: brands, selectedOptions: $selectedBrands)
-                    FilterSection(title: "Цена", options: priceRanges, selectedOptions: $selectedPriceRanges)
+                    FilterSection(title: "Категория", options: viewModel.categories, selectedOptions: $selectedCategories)
+                    FilterSection(title: "Цвет", options: viewModel.colors, selectedOptions: $selectedColors)
+                    FilterSection(title: "Сезон", options: viewModel.seasons, selectedOptions: $selectedSeasons)
+                    FilterSection(title: "Бренд", options: viewModel.brands, selectedOptions: $selectedBrands)
+                    FilterSection(title: "Цена", options: viewModel.priceRanges, selectedOptions: $selectedPriceRanges)
                 }
                 .padding(.horizontal)
             }
@@ -54,6 +50,9 @@ struct FiltersBottomSheet: View {
         .shadow(radius: 5)
         .transition(.move(edge: .bottom))
         .animation(.spring(), value: isPresented)
+        .onAppear {
+            viewModel.fetchAll()
+        }
     }
 
     private func resetFilters() {
@@ -64,4 +63,3 @@ struct FiltersBottomSheet: View {
         selectedPriceRanges.removeAll()
     }
 }
-

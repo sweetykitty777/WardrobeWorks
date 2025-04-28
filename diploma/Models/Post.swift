@@ -2,24 +2,19 @@
 //  Post.swift
 //  diploma
 //
-//  Created by Olga on 11.03.2025.
+//  Created by Olga on 24.04.2025.
 //
 
 import Foundation
 
-struct Post: Identifiable {
-    let id = UUID()
-    var outfit: Outfit
-    var likes: Int
-    var comments: [String]
-    var description: String? // ✅ Опциональное описание
-    var author: String // ✅ Автор поста
+struct Post: Identifiable, Decodable {
+    let id: Int
+    let user: Int                // ID автора
+    let createdAt: String        // ISO-строка
+    let text: String
+    let images: [String]
+    var likes: Int               // текущее число лайков
+    var isLiked: Bool            // новое поле!
 
-    init(outfit: Outfit, likes: Int = 0, comments: [String] = [], description: String? = nil, author: String) {
-        self.outfit = outfit
-        self.likes = likes
-        self.comments = comments
-        self.description = description
-        self.author = author
-    }
+    // Мы не пишем свой инициализатор, Codable сгенерирует его автоматически
 }

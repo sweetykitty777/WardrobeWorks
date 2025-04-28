@@ -1,84 +1,85 @@
 import SwiftUI
 
 struct PostView: View {
-    @Binding var post: Post
-    @State private var showOutfitDetail = false
-    @State private var showComments = false
-
+    @ObservedObject var viewModel: PostViewModel
+    var onComment: () -> Void
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-
-            if let imageName = post.outfit.imageName, let image = UIImage(named: imageName) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 300)
-                    .clipShape(RoundedRectangle(cornerRadius: 15))
-                    .onTapGesture {
-                        showOutfitDetail = true
-                    }
-            } else {
-                Image(systemName: "photo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 300)
-                    .foregroundColor(.gray)
-            }
-
-            Text(post.outfit.name)
-                .font(.headline)
-                .padding(.horizontal)
-
-            if let description = post.description {
-                HStack(alignment: .top) {
-                    Text(post.author + ":")
-                        .font(.headline)
-                        .foregroundColor(.black)
-
-                    Text(description)
-                        .font(.body)
-                        .foregroundColor(.black)
-                        .lineLimit(nil)
-                }
-                .padding(.horizontal)
-            }
-
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            if let imageUrlString = viewModel.post.images.first,
+               let url = URL(string: imageUrlString) {
                 
-                Button(action: {
-                    post.likes += 1
-                }) {
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.red)
-                        Text("\(post.likes)")
+                let imgWidth = UIScreen.main.bounds.width * 0.7
+                
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: imgWidth)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(.systemGray5), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    case .empty:
+                        ProgressView()
+                            .frame(width: imgWidth, height: imgWidth * 0.6)
+                    case .failure:
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(width: imgWidth, height: imgWidth * 0.6)
+                            Image(systemName: "photo")
+                                .font(.system(size: 36))
+                                .foregroundColor(.gray)
+                        }
+                    @unknown default:
+                        EmptyView()
                     }
                 }
-
-                Spacer()
-
-
-                Button(action: {
-                    showComments = true
-                }) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                            .foregroundColor(.blue)
-                        Text("\(post.comments.count)")
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
+            
+            if let caption = viewModel.post.text {
+                HStack(alignment: .top, spacing: 4) {
+                    NavigationLink(destination: OtherUserProfileView(userId: viewModel.post.user)) {
+                        Text("@\(viewModel.username)")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
                     }
+                    Text(caption)
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            HStack(spacing: 24) {
+                Button(action: { viewModel.didTapLike() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.isLiked ? "heart.fill" : "heart")
+                        Text("\(viewModel.likeCount)")
+                    }
+                    .font(.system(size: 20))
+                    .foregroundColor(.pink)
+                }
+                
+                Button(action: onComment) {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.gray)
                 }
             }
-            .padding(.horizontal)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding()
+        .padding(12)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        .shadow(radius: 3)
-        .sheet(isPresented: $showOutfitDetail) {
-            OutfitDetailView(outfit: post.outfit)
-        }
-        .sheet(isPresented: $showComments) {
-            CommentsView(post: $post)
-        }
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 8)
     }
 }

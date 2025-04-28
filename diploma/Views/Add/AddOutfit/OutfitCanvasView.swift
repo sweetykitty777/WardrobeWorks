@@ -1,15 +1,21 @@
 import SwiftUI
-
+/*
 struct OutfitCanvasView: View {
     @State private var outfitItems: [OutfitItem] = []
     @State private var showingWardrobe = false
 
+    @StateObject private var wardrobeViewModel = WardrobeViewModel()
+    @State private var selectedWardrobeName: String = "Выбрать гардероб"
+    @State private var selectedWardrobeId: Int?
+
     var body: some View {
         NavigationView {
             GeometryReader { geometry in
-                VStack {
+                VStack(spacing: 0) {
+                    // Верхняя панель
                     HStack {
                         Button(action: {
+                            // Назад
                         }) {
                             Image(systemName: "chevron.left")
                                 .foregroundColor(.black)
@@ -22,11 +28,12 @@ struct OutfitCanvasView: View {
                             saveOutfit()
                         }) {
                             HStack {
-                                Text("Save")
+                                Text("Сохранить")
                                 Image(systemName: "arrow.right")
                             }
                             .foregroundColor(.white)
-                            .padding()
+                            .padding(.horizontal)
+                            .padding(.vertical, 10)
                             .background(Color.black)
                             .cornerRadius(20)
                         }
@@ -34,6 +41,33 @@ struct OutfitCanvasView: View {
                     .padding(.horizontal)
                     .padding(.top, 10)
 
+                    // Выпадающий список гардеробов
+                    Menu {
+                        ForEach(wardrobeViewModel.wardrobes, id: \.id) { wardrobe in
+                            Button(wardrobe.name) {
+                                selectedWardrobeName = wardrobe.name
+                                selectedWardrobeId = wardrobe.id
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(selectedWardrobeName)
+                                .foregroundColor(.black)
+                                .font(.system(size: 16, weight: .medium))
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        .frame(height: 44)
+                        .background(Color.white)
+                        .cornerRadius(14)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+
+                    // Полотно с вещами
                     ZStack {
                         Color.white
                             .cornerRadius(20)
@@ -45,8 +79,9 @@ struct OutfitCanvasView: View {
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.top, 12)
 
-
+                    // Кнопка добавления вещей
                     Button(action: {
                         showingWardrobe = true
                     }) {
@@ -63,6 +98,9 @@ struct OutfitCanvasView: View {
                     }
                     .padding()
                 }
+                .onAppear {
+                    wardrobeViewModel.fetchWardrobes()
+                }
                 .sheet(isPresented: $showingWardrobe) {
                     WardrobeSelectionView(selectedItems: $outfitItems)
                 }
@@ -71,6 +109,18 @@ struct OutfitCanvasView: View {
     }
 
     private func saveOutfit() {
-        print("Аутфит сохранён: \(outfitItems.map { $0.name })")
+        guard let wardrobeId = selectedWardrobeId else {
+            print("❌ Гардероб не выбран")
+            return
+        }
+
+        print("✅ Сохраняем аутфит в гардеробе ID \(wardrobeId):")
+        for item in outfitItems {
+            print("• \(item.name)")
+        }
+
+        // TODO: отправка на сервер, если будет API
     }
 }
+
+*/

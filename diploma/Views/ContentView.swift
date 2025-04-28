@@ -9,7 +9,7 @@ struct DateInfo: Identifiable {
 
 struct ContentView: View {
     @State private var selectedDate: String? = nil
-    @State private var dates: [DateInfo] = [] // Initialize an empty array
+    @State private var dates: [DateInfo] = []
 
     let daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
@@ -94,7 +94,7 @@ struct ContentView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .padding()
         .onAppear {
-            self.dates = generateDates() // Populate dates when the view appears
+            self.dates = generateDates() 
         }
         
     }

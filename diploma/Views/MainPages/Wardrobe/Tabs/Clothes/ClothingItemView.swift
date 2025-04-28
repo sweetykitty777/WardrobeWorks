@@ -1,60 +1,91 @@
-//
-//  ClothingItemView.swift
-//  diploma
-//
-//  Created by Olga on 17.03.2025.
-//
-
-import Foundation
 import SwiftUI
 
-struct ClothingItemView: View {
-    let item: ClothingItem
+struct ClothItemView: View {
+    let item: ClothItem
     @Binding var selectedItems: [OutfitItem]
-    @State private var showDetailView = false
 
     var body: some View {
-        VStack {
-            if let imageName = item.image_str, let image = UIImage(named: imageName) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .onTapGesture {
-                        showDetailView = true
+        NavigationLink(destination: ClothingDetailView(item: item)) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let url = URL(string: item.imagePath), !item.imagePath.isEmpty {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 150, height: 110)
+                                .cornerRadius(12)
+                        case .empty, .failure:
+                            placeholderView
+                        @unknown default:
+                            placeholderView
+                        }
                     }
-            } else {
-                Image(systemName: "photo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .foregroundColor(.gray) //
-                    .onTapGesture {
-                        showDetailView = true
-                    }
+                } else {
+                    placeholderView
+                }
             }
-
-            Text(item.name)
-                .font(.caption)
-                .foregroundColor(.black)
+            .padding(10)
+            .cornerRadius(16)
         }
-        .frame(width: 100)
-        .onTapGesture {
-            addItem(item)
-        }
-        .sheet(isPresented: $showDetailView) {
-            ClothingDetailView(item: .constant(item), clothingItems: .constant([]))
-        }
+        .buttonStyle(PlainButtonStyle())
     }
 
+    private var placeholderView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.gray.opacity(0.1))
+                .frame(width: 150, height: 110)
+            Image(systemName: "photo")
+                .font(.system(size: 30))
+                .foregroundColor(.gray)
+        }
+    }
+}
 
-    private func addItem(_ item: ClothingItem) {
-        let newItem = OutfitItem(
-            name: item.name,
-            imageName: item.image_str ?? "placeholder",
-            position: CGPoint(x: 150, y: 150)
-        )
-        selectedItems.append(newItem)
+struct ClothItemViewNotSelectable: View {
+    let item: ClothItem
+
+    var body: some View {
+        NavigationLink(destination: ClothingDetailView(item: item)) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let url = URL(string: item.imagePath), !item.imagePath.isEmpty {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 150, height: 110)
+                                .cornerRadius(12)
+                        case .empty, .failure:
+                            placeholderView
+                        @unknown default:
+                            placeholderView
+                        }
+                    }
+                } else {
+                    placeholderView
+                }
+            }
+            .padding(10)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+            .frame(width: 150)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var placeholderView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.gray.opacity(0.1))
+                .frame(width: 150, height: 110)
+            Image(systemName: "photo")
+                .font(.system(size: 30))
+                .foregroundColor(.gray)
+        }
     }
 }

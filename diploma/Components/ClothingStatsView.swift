@@ -21,36 +21,35 @@ struct ClothingStatsView: View {
                 .padding(.horizontal, 20)
 
             HStack(spacing: 10) {
-                statBox(title: "Всего вещей", value: "\(viewModel.totalItems)")
-                statBox(title: "Аутфитов", value: "\(viewModel.weeklyUsage)")
-                statBox(title: "Популярное", value: viewModel.mostPopularItem)
+                statBox(title: "Вещи", value: "\(viewModel.totalItems)")
+                statBox(title: "Аутфиты", value: "\(viewModel.weeklyUsage)")
             }
             .frame(maxWidth: .infinity, maxHeight: 100)
             .padding(.horizontal, 20)
-            .padding(.vertical, 10)
         }
         .sheet(isPresented: $showingFullStats) {
             FullStatsView(viewModel: viewModel)
         }
+        .padding(.vertical, 20)
     }
 
-    /// **Квадратики статистики**
     private func statBox(title: String, value: String) -> some View {
-        VStack(spacing: 4) {
+        VStack(alignment: .center, spacing: 6) {
             Text(value)
-                .font(.body)
-                .bold()
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.black)
+
             Text(title)
-                .font(.footnote)
+                .font(.system(size: 13))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity)
         .background(Color.white)
-        .cornerRadius(10)
-        .shadow(radius: 1)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
+
 }
 

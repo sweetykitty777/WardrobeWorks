@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Wardrobe: Identifiable, Hashable { // ✅ Добавляем `Hashable`
+struct WardrobeOld: Identifiable, Hashable { // ✅ Добавляем `Hashable`
     let id = UUID()
     var name: String
 

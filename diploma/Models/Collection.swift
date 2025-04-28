@@ -11,7 +11,7 @@ import Foundation
 struct Collection: Identifiable {
     let id: UUID
     var name: String
-    var outfits: [Outfit] // ✅ Коллекция хранит аутфиты
+    var outfits: [Outfit]
 
     init(id: UUID = UUID(), name: String, outfits: [Outfit] = []) {
         self.id = id

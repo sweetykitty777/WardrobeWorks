@@ -6,19 +6,25 @@ import SwiftUI
 struct MockData {
 
     static let wardrobes: [Wardrobe] = [
-        Wardrobe(name: "Мой гардероб"),
-        Wardrobe(name: "Гардероб ребенка"),
+        Wardrobe(id: UUID(), name: "Мой гардероб", isPrivate: false),
+        Wardrobe(id: UUID(), name: "Гардероб ребенка", isPrivate: true)
+    ]
+    
+    static let followingAuthors: Set<String> = [
+        "annstylist",
+        "fashionista",
+        "styleguru"
     ]
 
     static let clothingItems: [ClothingItem] = [
-        ClothingItem(name: "любимые джинсики", image_str: "jeans4", brand: "Levi’s", color: "Синий", season: "Лето", price: "$50"),
+        /*ClothingItem(name: "любимые джинсики", image_str: "jeans4", brand: "Levi’s", color: "Синий", season: "Лето", price: "$50"),
         ClothingItem(name: "", image_str: "top", category: "Верх", wardrobe: wardrobes[0]),
         ClothingItem(name: "", image_str: "bl", category: "Верх", wardrobe: wardrobes[0]),
         ClothingItem(name: "", image_str: "bl1", category: "Верх", wardrobe: wardrobes[0]),
         ClothingItem(name: "", image_str: "bl2", category: "Верх", wardrobe: wardrobes[0]),
         ClothingItem(name: "", image_str: "dr1", category: "Платья и комбинезоны", wardrobe: wardrobes[0]),
         ClothingItem(name: "", image_str: "coat", category: "Верхняя одежда", wardrobe: wardrobes[0]),
-    ]
+    */]
     
     static let outfitItems: [OutfitItem] = [
             OutfitItem(name: "любимые джинсики", imageName: "jeans4", position: CGPoint(x: 150, y: 150)),
@@ -41,7 +47,7 @@ struct MockData {
         Collection(name: "Мои лучшие образы", outfits: [outfits[0], outfits[1]])
     ]
 
-    static let posts: [Post] = [
+  /*  static let posts: [Post] = [
         Post(
             outfit: outfits[0],
             likes: 12,
@@ -55,6 +61,18 @@ struct MockData {
             comments: ["Обожаю осенние образы"],
             description: "Этот лук идеально подходит для прохладных дней.",
             author: "max77777"
+        )
+    ]*/
+    static let scheduledOutfits: [ScheduledOutfit] = [
+        ScheduledOutfit(
+            date: Calendar.current.date(byAdding: .day, value: +1, to: Date())!,
+            outfit: outfits[0],
+            eventNote: "новый год"
+        ),
+        ScheduledOutfit(
+            date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
+            outfit: outfits[0],
+            eventNote: "новый год"
         )
     ]
 }

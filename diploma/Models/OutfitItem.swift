@@ -10,7 +10,7 @@ import SwiftUI
 
 struct OutfitItem: Identifiable {
     let id = UUID()
-    var name: String
+    var name: String?
     var imageName: String
     var position: CGPoint = CGPoint(x: 150, y: 150)
     var scale: CGFloat = 1.0

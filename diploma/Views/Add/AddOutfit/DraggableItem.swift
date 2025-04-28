@@ -1,76 +1,83 @@
 import SwiftUI
 
 struct DraggableItem: View {
-    @Binding var item: OutfitItem
+    @Binding var item: PlacedClothingItem
+    var imageURL: String
+    var canvasSize: CGSize
+    var onDelete: () -> Void
+
     @State private var offset: CGSize = .zero
     @State private var scale: CGFloat = 1.0
     @State private var rotation: Double = 0.0
-    var canvasSize: CGSize
+    @State private var isSelected: Bool = false
 
     var body: some View {
-        VStack {
-            if let uiImage = UIImage(named: item.imageName) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100 * item.scale, height: 100 * item.scale)
-                    .rotationEffect(.degrees(item.rotation + rotation))
-                    .offset(offset)
-                    .position(x: item.position.x, y: item.position.y)
-                    .gesture(dragGesture)
-                    .gesture(magnificationGesture)
-                    .gesture(rotationGesture)
-            } else {
-                Image(systemName: "photo") 
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .foregroundColor(.gray)
-                    .overlay(
-                        Text("Изображение не найдено")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                    )
+        ZStack(alignment: .topTrailing) {
+            RemoteImageView(
+                urlString: imageURL,
+                width: 100 * item.scale,
+                height: 100 * item.scale
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.blue, lineWidth: isSelected ? 2 : 0)
+            )
+            .overlay(
+                Group {
+                    if isSelected {
+                        Button(action: {
+                            onDelete()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                        }
+                        .offset(x: 8, y: -8)
+                    }
+                },
+                alignment: .topTrailing
+            )
+            .rotationEffect(.degrees(item.rotation + rotation))
+            .offset(offset)
+            .position(x: item.x, y: item.y)
+            .gesture(dragGesture)
+            .gesture(magnificationGesture)
+            .gesture(rotationGesture)
+            .onTapGesture {
+                withAnimation {
+                    isSelected.toggle()
+                }
             }
         }
         .onAppear {
-            print("Загружаем изображение: \(item.imageName)")
+            print("DraggableItem → clothId: \(item.clothId)")
+            print("URL: \(imageURL)")
         }
     }
-
 
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { gesture in
-                let newX = item.position.x + gesture.translation.width
-                let newY = item.position.y + gesture.translation.height
-
-                if isWithinBounds(newX: newX, newY: newY, item: item) {
-                    offset = gesture.translation
-                }
+                offset = gesture.translation
             }
             .onEnded { _ in
-                item.position.x += offset.width
-                item.position.y += offset.height
+                item.x += offset.width
+                item.y += offset.height
                 offset = .zero
             }
     }
 
-
     private var magnificationGesture: some Gesture {
         MagnificationGesture()
             .onChanged { value in
-                let newScale = item.scale * value.magnitude
-                if newScale > 0.5 && newScale < 3.0 {
-                    scale = value.magnitude
-                }
+                scale = value.magnitude
             }
             .onEnded { _ in
                 item.scale *= scale
                 scale = 1.0
             }
     }
-
 
     private var rotationGesture: some Gesture {
         RotationGesture()
@@ -81,16 +88,5 @@ struct DraggableItem: View {
                 item.rotation += rotation
                 rotation = 0.0
             }
-    }
-
-
-    private func isWithinBounds(newX: CGFloat, newY: CGFloat, item: OutfitItem) -> Bool {
-        let halfWidth = (50 * item.scale)
-        let halfHeight = (50 * item.scale)
-
-        return newX >= halfWidth &&
-               newX <= (canvasSize.width - halfWidth) &&
-               newY >= halfHeight &&
-               newY <= (canvasSize.height - halfHeight)
     }
 }

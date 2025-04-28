@@ -14,15 +14,18 @@ struct CustomTextField: View {
     var keyboardType: UIKeyboardType = .default
 
     var body: some View {
-        VStack(spacing: 15) {
-            HStack {
-                Text(title).font(.headline)
-                Spacer()
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+
             TextField("Введите \(title.lowercased())...", text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
                 .keyboardType(keyboardType)
+                .padding()
+                .background(Color.white)
+                .cornerRadius(14)
+                .font(.system(size: 16, weight: .medium))
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
     }
 }
-
