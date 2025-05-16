@@ -7,7 +7,7 @@
 
 import Foundation
 import SwiftUI
-
+/*
 struct CanvasRendererView: View {
     let items: [PlacedClothingItem]
     let images: [Int: UIImage]
@@ -34,3 +34,4 @@ struct CanvasRendererView: View {
         .frame(width: canvasSize.width, height: canvasSize.height)
     }
 }
+*/

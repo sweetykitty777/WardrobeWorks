@@ -10,70 +10,92 @@ struct EditProfileView: View {
     @State private var errorMessage = ""
 
     var body: some View {
-        NavigationView {
-            VStack {
-                // Аватарка
-                VStack(spacing: 8) {
-                    if let image = viewModel.selectedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 100, height: 100)
-                            .clipShape(Circle())
-                            .overlay(avatarEditButton, alignment: .bottomTrailing)
-                    } else if let url = URL(string: viewModel.user.avatar ?? "") {
-                        RemoteImageView(urlString: url.absoluteString, cornerRadius: 50, width: 100, height: 100)
-                            .overlay(avatarEditButton, alignment: .bottomTrailing)
-                    } else {
-                        Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 60, height: 60)
-                                    .foregroundColor(.gray)
-                            )
-                            .overlay(avatarEditButton, alignment: .bottomTrailing)
-                    }
-                }
-                .padding(.top, 20)
+        VStack {
 
-                Form {
-                    Section(header: Text("О себе")) {
-                        TextField("О себе", text: $bio)
-                    }
+            VStack(spacing: 8) {
+                if let image = viewModel.selectedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 100, height: 100)
+                        .clipShape(Circle())
+                        .overlay(avatarEditButton, alignment: .bottomTrailing)
+                } else if let url = URL(string: viewModel.user.avatar ?? "") {
+                    RemoteImageView(urlString: url.absoluteString, cornerRadius: 50, width: 100, height: 100)
+                        .overlay(avatarEditButton, alignment: .bottomTrailing)
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 100, height: 100)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 60, height: 60)
+                                .foregroundColor(.gray)
+                        )
+                        .overlay(avatarEditButton, alignment: .bottomTrailing)
+                }
+            }
+            .padding(.top, 20)
 
-                    if showError {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.footnote)
+            Form {
+                Section(header: Text("О себе")) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextEditor(text: Binding(
+                            get: { self.bio },
+                            set: { newValue in
+                                if newValue.count <= InputLimits.bioMaxLength {
+                                    self.bio = newValue
+                                } else {
+                                    self.bio = String(newValue.prefix(100))
+                                }
+                            }
+                        ))
+                        .frame(height: 100)
+                        .padding(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.3))
+                        )
+
+                        HStack {
+                            Spacer()
+                            Text("\(bio.count)/100")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
                     }
-                }
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Редактировать")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Сохранение..." : "Сохранить") {
-                        saveProfile()
-                    }
-                    .disabled(isSaving)
                 }
 
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") {
-                        dismiss()
-                    }
+                if showError {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.footnote)
                 }
             }
-            .onAppear {
-                bio = viewModel.user.bio ?? ""
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Редактировать")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(isSaving ? "Сохранение..." : "Сохранить") {
+                    saveProfile()
+                }
+                .disabled(isSaving)
             }
-            .sheet(isPresented: $viewModel.showingImagePicker) {
-                ImagePicker(image: $viewModel.selectedImage)
+
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Отмена") {
+                    dismiss()
+                }
             }
+        }
+        .onAppear {
+            bio = viewModel.user.bio ?? ""
+        }
+        .sheet(isPresented: $viewModel.showingImagePicker) {
+            ImagePicker(image: $viewModel.selectedImage)
         }
     }
 

@@ -1,12 +1,6 @@
-//
-//  FilterOptionsViewModel.swift
-//  diploma
-//
-//  Created by Olga on 23.04.2025.
-//
-
 import Foundation
 import SwiftUI
+import PostHog
 
 class FilterOptionsViewModel: ObservableObject {
     @Published var categories: [String] = []
@@ -21,8 +15,10 @@ class FilterOptionsViewModel: ObservableObject {
                 switch result {
                 case .success(let items):
                     self.categories = items.map { $0.name }
-                case .failure:
+                    PostHogSDK.shared.capture("filter content loaded", properties: ["type": "categories", "count": items.count])
+                case .failure(let error):
                     self.categories = []
+                    PostHogSDK.shared.capture("filter content load failed", properties: ["type": "categories", "error": error.localizedDescription])
                 }
             }
         }
@@ -32,8 +28,10 @@ class FilterOptionsViewModel: ObservableObject {
                 switch result {
                 case .success(let items):
                     self.brands = items.map { $0.name }
-                case .failure:
+                    PostHogSDK.shared.capture("filter content loaded", properties: ["type": "brands", "count": items.count])
+                case .failure(let error):
                     self.brands = []
+                    PostHogSDK.shared.capture("filter content load failed", properties: ["type": "brands", "error": error.localizedDescription])
                 }
             }
         }
@@ -43,8 +41,10 @@ class FilterOptionsViewModel: ObservableObject {
                 switch result {
                 case .success(let items):
                     self.colors = items.map { $0.name }
-                case .failure:
+                    PostHogSDK.shared.capture("filter content loaded", properties: ["type": "colors", "count": items.count])
+                case .failure(let error):
                     self.colors = []
+                    PostHogSDK.shared.capture("filter content load failed", properties: ["type": "colors", "error": error.localizedDescription])
                 }
             }
         }
@@ -54,8 +54,10 @@ class FilterOptionsViewModel: ObservableObject {
                 switch result {
                 case .success(let items):
                     self.seasons = items.map { $0.name }
-                case .failure:
+                    PostHogSDK.shared.capture("filter content loaded", properties: ["type": "seasons", "count": items.count])
+                case .failure(let error):
                     self.seasons = []
+                    PostHogSDK.shared.capture("filter content load failed", properties: ["type": "seasons", "error": error.localizedDescription])
                 }
             }
         }

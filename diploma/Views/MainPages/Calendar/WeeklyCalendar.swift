@@ -2,10 +2,11 @@ import SwiftUI
 
 struct WeeklyCalendarView: View {
     @StateObject private var viewModel = WeeklyCalendarViewModel()
-    @StateObject private var statsViewModel = ClothingStatsViewModel()
     @StateObject private var calendarOutfitViewModel = CalendarOutfitViewModel()
     @StateObject private var outfitViewModel = OutfitViewModel()
     @StateObject private var inspirationViewModel = InspirationViewModel()
+    @StateObject var statsViewModel = FullStatsViewModel()
+    @StateObject private var clothesViewModel = ClothesViewModel() 
 
     @State private var posts: [Post] = []
     @State private var showingDatePicker = false
@@ -16,204 +17,146 @@ struct WeeklyCalendarView: View {
     @State private var showingShareAccessSheet = false
     @State private var showingMenu = false
     @State private var selectedTab: Int = 0
+    @State private var previousTab: Int = 0
 
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                TabView(selection: $selectedTab) {
-                    
-                    NavigationView {
-                        VStack(spacing: 0) {
-                            ScrollView {
-                                VStack(spacing: 16) {
-                                    
-                                    HeaderView(
-                                        showingDatePicker: $showingDatePicker,
-                                        selectedDate: $viewModel.selectedDate,
-                                        onDateSelected: { newDate in
-                                            viewModel.selectDate(newDate)
-                                        },
-                                        onShareAccessTapped: {
-                                            showingShareAccessSheet = true
-                                        }
-                                    )
-                                    
-                                    WeekNavigationView(viewModel: viewModel)
-                                    DaysScrollView(viewModel: viewModel)
-                                    
-                                    let scheduledVM = ScheduledOutfitViewModel(
-                                        scheduledOutfit: viewModel.selectedScheduledOutfit,
-                                        onDelete: {
-                                            viewModel.updateCurrentWeek()
-                                        }
-                                    )
-                                    ScheduledOutfitView(
-                                        viewModel: scheduledVM,
-                                        showingAddOutfitSheet: $showingScheduleOutfit
-                                    )
-                                    
-                                    ClothingStatsView(viewModel: statsViewModel)
-                                    
-                                    Divider()
-                                        .padding(.vertical, 8)
-                                    
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Поиск календарей других пользователей")
-                                            .font(.headline)
-                                            .padding(.horizontal)
-                                        
-                                        TextField("Введите имя пользователя...", text: $inspirationViewModel.searchText)
-                                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                                            .padding(.horizontal)
-                                            .submitLabel(.search)
-                                            .onSubmit {
-                                                inspirationViewModel.searchUsers()
-                                            }
-                                        
-                                        if !inspirationViewModel.searchResults.isEmpty {
-                                            ForEach(inspirationViewModel.searchResults) { user in
-                                                NavigationLink(destination: UserCalendarView(userId: user.id)) {
-                                                    HStack(spacing: 12) {
-                                                        if let avatar = user.avatar {
-                                                            RemoteImageView(
-                                                                urlString: avatar,
-                                                                cornerRadius: 20,
-                                                                width: 40,
-                                                                height: 40
-                                                            )
-                                                        } else {
-                                                            Image(systemName: "person.crop.circle.fill")
-                                                                .resizable()
-                                                                .frame(width: 40, height: 40)
-                                                                .foregroundColor(.gray)
-                                                        }
-                                                        VStack(alignment: .leading) {
-                                                            Text("@\(user.username)")
-                                                                .fontWeight(.semibold)
-                                                            if let bio = user.bio {
-                                                                Text(bio)
-                                                                    .font(.caption)
-                                                                    .foregroundColor(.secondary)
-                                                            }
-                                                        }
-                                                        Spacer()
-                                                    }
-                                                    .padding(.horizontal)
-                                                }
-                                                .buttonStyle(PlainButtonStyle())
-                                            }
-                                        }
-                                    }
-                                }
-                                .padding(.top, 8)
-                            }
-                        }
-                        .navigationBarHidden(true)
-                        .onAppear {
-                            viewModel.fetchCalendar {
-                                viewModel.fetchScheduledOutfits { _ in
-                                    viewModel.updateCurrentWeek()
-                                }
-                            }
-                            statsViewModel.fetchClothingStats()
-                        }
-                    }
-                    .navigationViewStyle(StackNavigationViewStyle())
+            TabView(selection: $selectedTab) {
+                calendarTab
                     .tabItem {
                         Image(systemName: "calendar")
                         Text("Календарь")
                     }
                     .tag(0)
-                    
-                    NavigationView {
-                        WardrobeTabView()
-                            .navigationBarHidden(true)
-                    }
-                    .navigationViewStyle(StackNavigationViewStyle())
+
+                NavigationStack {
+                    WardrobeTabView()
+                } .applyNavigationRouter()
                     .tabItem {
                         Image(systemName: "tshirt")
                         Text("Гардероб")
                     }
                     .tag(1)
-                    
-                    Color.clear
-                        .tabItem {
-                            PlusTabButton()
-                        }
-                        .tag(2)
-                        .onAppear {
-                            showingMenu = true
-                            selectedTab = 0
-                        }
-                    
-                    NavigationView {
-                        InspirationView()
-                            .navigationBarHidden(true)
+
+                Color.clear
+                    .tabItem {
+                        PlusTabButton()
                     }
-                    .navigationViewStyle(StackNavigationViewStyle())
+                    .tag(2)
+
+                NavigationStack {
+                    InspirationView()
+                }.applyNavigationRouter()
                     .tabItem {
                         Image(systemName: "lightbulb")
                         Text("Вдохновение")
                     }
                     .tag(3)
-                    
-                    NavigationView {
-                        UserProfileView()
-                            .navigationBarHidden(true)
-                    }
-                    .navigationViewStyle(StackNavigationViewStyle())
+
+                NavigationStack {
+                    UserProfileView()
+                }.applyNavigationRouter()
                     .tabItem {
                         Image(systemName: "person")
                         Text("Профиль")
                     }
                     .tag(4)
-                }
             }
-            
 
-                CustomMenuOverlay(
-                    showingMenu: $showingMenu,
-                    showingAddItemSheet: $showingAddItemSheet,
-                    showingAddOutfitSheet: $showingAddOutfitSheet,
-                    showingAddPostSheet: $showingAddPostSheet
-                )
-                .offset(y: showingMenu ? 0 : UIScreen.main.bounds.height)
-                .animation(.spring(), value: showingMenu)
-                .zIndex(1)
+            CustomMenuOverlay(
+                showingMenu: $showingMenu,
+                showingAddItemSheet: $showingAddItemSheet,
+                showingAddOutfitSheet: $showingAddOutfitSheet,
+                showingAddPostSheet: $showingAddPostSheet
+            )
+            .offset(y: showingMenu ? 0 : UIScreen.main.bounds.height)
+            .animation(.spring(), value: showingMenu)
+            .zIndex(1)
+        }
+        .onChange(of: selectedTab) { newValue in
+            if newValue == 2 {
+                showingMenu = true
+                selectedTab = previousTab
+            } else {
+                previousTab = newValue
             }
+        }
         .background(Color.white.ignoresSafeArea())
-        .sheet(isPresented: $showingAddItemSheet) {
-            AddClothingItemView(viewModel: AddClothingItemViewModel())
+        .fullScreenCover(isPresented: $showingAddItemSheet) {
+            NavigationStack {
+                AddClothingItemView(
+                    viewModel: AddClothingItemViewModel(),
+                    clothesViewModel: clothesViewModel
+                )
+            }
         }
-        .sheet(isPresented: $showingAddOutfitSheet) {
-            CreateOutfitView(viewModel: outfitViewModel)
+
+        .fullScreenCover(isPresented: $showingAddOutfitSheet) {
+            NavigationStack {
+                CreateOutfitView(
+                    wardrobeId: nil, // <-- передаём nil, если не хотим фетчить заранее
+                    onSave: {
+                        showingAddOutfitSheet = false
+                  //      outfitViewModel.fetchOutfits()
+                    }
+                )
+            }
         }
-        .sheet(isPresented: $showingAddPostSheet) {
-            CreatePostView(posts: $posts, outfitViewModel: outfitViewModel)
+
+
+
+        .fullScreenCover(isPresented: $showingAddPostSheet) {
+            NavigationStack {
+                CreatePostView(posts: $posts, outfitViewModel: outfitViewModel)
+            }
         }
         .sheet(isPresented: $showingScheduleOutfit) {
-            ScheduleOutfitView(
-                viewModel: ScheduleOutfitViewModel(date: viewModel.selectedDate),
-                onSuccess: {
-                    viewModel.updateCurrentWeek()
-                }
-            )
-        }
-        .sheet(isPresented: $showingShareAccessSheet) {
-            if let calendar = viewModel.calendar {
-                CalendarPrivacyView(
-                    viewModel: CalendarPrivacyViewModel(
-                        calendarId: calendar.id,
-                        initialPrivacy: calendar.isPrivate
-                    )
-                )
-            } else {
-                ProgressView("Загрузка...")
-                    .padding()
-                    .onAppear {
-                        viewModel.fetchCalendar()
+            NavigationStack {
+                ScheduleOutfitView(
+                    viewModel: ScheduleOutfitViewModel(date: viewModel.selectedDate),
+                    onSuccess: {
+                        viewModel.updateCurrentWeek()
+                        statsViewModel.refreshPlannedLast7Days()
                     }
+                )
             }
         }
+        .sheet(isPresented: $showingShareAccessSheet) {
+            NavigationStack {
+                if let calendar = viewModel.calendar {
+                    CalendarPrivacyView(
+                        viewModel: CalendarPrivacyViewModel(
+                            calendarId: calendar.id,
+                            initialPrivacy: calendar.isPrivate
+                        )
+                    )
+                } else {
+                    ProgressView("Загрузка...")
+                        .padding()
+                        .onAppear {
+                            viewModel.fetchCalendar()
+                        }
+                }
+            }
+        }
+        .onAppear {
+            viewModel.fetchCalendar {
+                viewModel.fetchScheduledOutfits { _ in
+                    viewModel.updateCurrentWeek()
+                }
+            }
+     //       statsViewModel.fetchClothingStats()
+        }
+    }
+
+    private var calendarTab: some View {
+        WeeklyCalendarTabContent(
+            viewModel: viewModel,
+            statsViewModel: statsViewModel,
+            inspirationViewModel: inspirationViewModel,
+            showingDatePicker: $showingDatePicker,
+            showingScheduleOutfit: $showingScheduleOutfit,
+            showingShareAccessSheet: $showingShareAccessSheet
+        )
     }
 }

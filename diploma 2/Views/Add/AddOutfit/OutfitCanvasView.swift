@@ -1,0 +1,80 @@
+import SwiftUI
+
+struct OutfitCanvasView: View {
+    @State private var outfitItems: [OutfitItem] = [] // ✅ Список добавленных вещей
+    @State private var showingWardrobe = false // ✅ Флаг для открытия выбора вещей
+
+    var body: some View {
+        NavigationView {
+            GeometryReader { geometry in // ✅ Получаем размер экрана
+                VStack {
+                    // ✅ Верхняя панель с кнопкой "Сохранить"
+                    HStack {
+                        Button(action: {
+                            // Действие при нажатии "Назад"
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(.black)
+                                .padding()
+                        }
+
+                        Spacer()
+
+                        Button(action: {
+                            saveOutfit()
+                        }) {
+                            HStack {
+                                Text("Save")
+                                Image(systemName: "arrow.right")
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.black)
+                            .cornerRadius(20)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+
+                    // ✅ Белый холст для аутфита
+                    ZStack {
+                        Color.white
+                            .cornerRadius(20)
+                            .shadow(radius: 2)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        // ✅ Отображаем добавленные вещи (можно перемещать)
+                        ForEach(outfitItems.indices, id: \.self) { index in
+                            DraggableItem(item: $outfitItems[index], canvasSize: geometry.size)
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    // ✅ Кнопка "Добавить вещи"
+                    Button(action: {
+                        showingWardrobe = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Добавить вещи")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.black)
+                        .cornerRadius(12)
+                    }
+                    .padding()
+                }
+                .sheet(isPresented: $showingWardrobe) {
+                    WardrobeSelectionView(selectedItems: $outfitItems)
+                }
+            }
+        }
+    }
+
+    private func saveOutfit() {
+        print("Аутфит сохранён: \(outfitItems.map { $0.name })")
+    }
+}

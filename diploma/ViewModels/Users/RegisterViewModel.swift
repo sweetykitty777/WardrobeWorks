@@ -1,8 +1,7 @@
-//  RegisterViewModel.swift
-//  diploma
-
 import Foundation
 import Combine
+import PostHog
+import os
 
 class RegisterViewModel: ObservableObject {
     @Published var email: String = ""
@@ -13,19 +12,27 @@ class RegisterViewModel: ObservableObject {
     @Published var registrationSuccess: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.yourapp.identifier", category: "Register")
 
     var isFormValid: Bool {
-        return isUsernameValid(username) && isPasswordValid(password) && !email.isEmpty && password == confirmPassword
+        return isUsernameValid(username) &&
+               isPasswordValid(password) &&
+               isEmailValid(email) &&
+               password == confirmPassword
     }
 
     func isUsernameValid(_ username: String) -> Bool {
-        let nicknameRegex = "^[A-Za-z0-9]{3,}$"
-        let nicknamePredicate = NSPredicate(format: "SELF MATCHES %@", nicknameRegex)
-        return nicknamePredicate.evaluate(with: username)
+        let regex = "^[A-Za-z0-9]{3,}$"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: username)
     }
 
     func isPasswordValid(_ password: String) -> Bool {
         return password.count > 5 && password.rangeOfCharacter(from: .uppercaseLetters) != nil
+    }
+
+    func isEmailValid(_ email: String) -> Bool {
+        let regex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: email)
     }
 
     func register() {
@@ -34,67 +41,34 @@ class RegisterViewModel: ObservableObject {
             return
         }
 
-        guard let registerURL = URL(string: "https://gate-acidnaya.amvera.io/api/v1/auth/register") else {
-            self.errorMessage = "Неверный URL для регистрации"
-            return
-        }
-
-        let registerBody = [
-            "email": email,
-            "password": password,
-            "username": username
-        ]
-
-        var registerRequest = URLRequest(url: registerURL)
-        registerRequest.httpMethod = "POST"
-        registerRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
-       // registerRequest.addValue("*/*", forHTTPHeaderField: "Accept")
-
-        do {
-            registerRequest.httpBody = try JSONSerialization.data(
-                withJSONObject: registerBody,
-                options: []
-            )
-        } catch {
-            self.errorMessage = "Ошибка при кодировании данных регистрации"
-            return
-        }
-
-        URLSession.shared.dataTask(with: registerRequest) { data, response, error in
+        AuthService.shared.register(email: email, password: password, username: username) { [weak self] result in
             DispatchQueue.main.async {
-                if let error = error {
-                    self.errorMessage = "Ошибка регистрации: \(error.localizedDescription)"
-                    print("Registration network error:", error)
-                    return
-                }
+                guard let self = self else { return }
 
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self.errorMessage = "Неверный ответ сервера"
-                    print("Invalid server response:", response ?? "nil")
-                    return
-                }
-
-                let statusCode = httpResponse.statusCode
-                print("Registration status code:", statusCode)
-
-                if let data = data, let body = String(data: data, encoding: .utf8) {
-                    print("Registration response body:", body)
-                }
-
-                if (200...299).contains(statusCode) {
+                switch result {
+                case .success:
                     self.registrationSuccess = true
-                    print("Регистрация успешно завершена")
-                } else {
-                    var serverMessage = "Код ошибки: \(statusCode)"
-                    if let data = data,
-                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let msg = json["message"] as? String {
-                        serverMessage = msg
-                    }
-                    self.errorMessage = "Ошибка регистрации: \(serverMessage)"
-                    print("Server error during registration:", serverMessage)
+                    self.errorMessage = nil
+
+                    PostHogSDK.shared.capture("user signed up", properties: [
+                        "email": self.email,
+                        "username": self.username,
+                        "method": "email"
+                    ])
+
+                    self.logger.info("Registration successful for \(self.email, privacy: .private)")
+
+                case .failure(let error):
+                    self.errorMessage = "Ошибка регистрации: \(error.localizedDescription)"
+
+                    PostHogSDK.shared.capture("signup failed", properties: [
+                        "email": self.email,
+                        "error": error.localizedDescription
+                    ])
+
+                    self.logger.error("Registration failed for \(self.email, privacy: .private): \(error.localizedDescription, privacy: .public)")
                 }
             }
-        }.resume()
+        }
     }
 }

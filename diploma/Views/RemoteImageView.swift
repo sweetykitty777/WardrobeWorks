@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 
+
+
 struct RemoteImageView: View {
     let urlString: String
     var cornerRadius: CGFloat = 10
@@ -45,3 +47,4 @@ struct RemoteImageView: View {
         .clipped()
     }
 }
+

@@ -1,43 +1,73 @@
 import Foundation
 import Combine
+import PostHog
 
 class LookbookDetailViewModel: ObservableObject {
     @Published var outfits: [OutfitResponse] = []
     @Published var errorMessage: String?
     var wardrobeId: Int?
+    var lookbookId: Int?
 
     private var cancellables = Set<AnyCancellable>()
 
     func fetchOutfits(in lookbookId: Int) {
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/wardrobe-service/lookbooks/\(lookbookId)/outfits") else {
-            errorMessage = "Неверный URL"
-            return
-        }
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        URLSession.shared.dataTaskPublisher(for: req)
-            .map(\.data)
-            .decode(type: [OutfitResponse].self, decoder: Self.customDecoder)
-            .receive(on: DispatchQueue.main)
-            .sink { completion in
-                if case let .failure(err) = completion {
-                    self.errorMessage = err.localizedDescription
-                    print("Ошибка фетчинга аутфитов:", err)
-                }
-            } receiveValue: { outfits in
-                self.outfits = outfits.sorted(by: { lhs, rhs in
-                    guard let lhsDate = lhs.createdAt, let rhsDate = rhs.createdAt else {
-                        return lhs.createdAt != nil // outfit с датой идет раньше
+        WardrobeService.shared.fetchLookbookOutfits(lookbookId: lookbookId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let outfits):
+                    self.outfits = outfits.sorted { lhs, rhs in
+                        switch (lhs.createdAt, rhs.createdAt) {
+                        case let (l?, r?): return l > r
+                        case (_?, nil):    return true
+                        case (nil, _?):    return false
+                        default:           return false
+                        }
                     }
-                    return lhsDate > rhsDate // новее — выше
-                })
-                print("Загружено и отсортировано аутфитов: \(self.outfits.count)")
+
+                    PostHogSDK.shared.capture("lookbook outfits loaded", properties: [
+                        "lookbook_id": lookbookId,
+                        "count": outfits.count
+                    ])
+
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+
+                    PostHogSDK.shared.capture("lookbook outfits load failed", properties: [
+                        "lookbook_id": lookbookId,
+                        "error": error.localizedDescription
+                    ])
+                }
             }
-            .store(in: &cancellables)
+        }
+    }
+
+    func removeOutfit(outfitId: Int) {
+        guard let lookbookId = lookbookId else { return }
+
+        WardrobeService.shared.removeOutfit(from: lookbookId, outfitId: outfitId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.outfits.removeAll { $0.id == outfitId }
+
+                    PostHogSDK.shared.capture("lookbook outfit removed", properties: [
+                        "lookbook_id": lookbookId,
+                        "outfit_id": outfitId
+                    ])
+
+                case .failure(let error):
+                    self.errorMessage = "Ошибка удаления аутфита: \(error.localizedDescription)"
+
+                    PostHogSDK.shared.capture("lookbook outfit remove failed", properties: [
+                        "lookbook_id": lookbookId,
+                        "outfit_id": outfitId,
+                        "error": error.localizedDescription
+                    ])
+
+                    print("Ошибка удаления аутфита из лукбука:", error)
+                }
+            }
+        }
     }
 
     private static var customDecoder: JSONDecoder {
@@ -56,3 +86,4 @@ class LookbookDetailViewModel: ObservableObject {
         return decoder
     }
 }
+

@@ -19,3 +19,4 @@ struct Collection: Identifiable {
         self.outfits = outfits
     }
 }
+

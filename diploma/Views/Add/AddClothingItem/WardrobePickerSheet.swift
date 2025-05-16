@@ -7,7 +7,6 @@ struct WardrobePickerSheet: View {
     let onSelect: (UsersWardrobe) -> Void
 
     var body: some View {
-        NavigationView {
             List(wardrobeViewModel.wardrobes, id: \.id) { wardrobe in
                 Button(action: {
                     onSelect(wardrobe)
@@ -20,7 +19,6 @@ struct WardrobePickerSheet: View {
                             .foregroundColor(.gray)
                     }
                 }
-            }
             .navigationTitle("Выберите гардероб")
             .onAppear {
                 wardrobeViewModel.fetchWardrobes()

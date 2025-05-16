@@ -12,23 +12,24 @@ struct CalendarPrivacyView: View {
     @ObservedObject var viewModel: CalendarPrivacyViewModel
 
     var body: some View {
-        NavigationView {
-            Form {
-                Toggle(isOn: $viewModel.isPrivate) {
-                    Text(viewModel.isPrivate ? "Приватный календарь" : "Публичный календарь")
-                        .fontWeight(.medium)
-                }
-                .onChange(of: viewModel.isPrivate) { _ in
-                    viewModel.changePrivacy()
-                }
+        Form {
+            Toggle(
+                isOn: Binding(
+                    get: { viewModel.isPrivate },
+                    set: { newValue in viewModel.setPrivacy(to: newValue) }
+                )
+            ) {
+                Text(viewModel.isPrivate ? "Приватный календарь" : "Публичный календарь")
+                    .fontWeight(.medium)
             }
-            .navigationTitle("Приватность")
-            .navigationBarTitleDisplayMode(.inline)
-            .overlay(
-                toastOverlay,
-                alignment: .top
-            )
+
         }
+        .navigationTitle("Приватность")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay(
+            toastOverlay,
+            alignment: .top
+        )
     }
 
     private var toastOverlay: some View {

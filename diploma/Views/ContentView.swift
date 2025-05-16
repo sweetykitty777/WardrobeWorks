@@ -1,5 +1,6 @@
 import SwiftUI
 
+/*
 struct DateInfo: Identifiable {
     let id: String
     let monthYear: String
@@ -106,3 +107,4 @@ struct ContentView_Previews: PreviewProvider {
             .previewDevice("iPhone 13 mini")
     }
 }
+*/

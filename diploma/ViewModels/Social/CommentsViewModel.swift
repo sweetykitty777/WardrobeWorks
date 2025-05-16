@@ -1,12 +1,6 @@
-//
-//  CommentsViewModel.swift
-//  diploma
-//
-//  Created by Olga on 25.04.2025.
-//
-
 import Foundation
 import Combine
+import PostHog
 
 class CommentsViewModel: ObservableObject {
     let postId: Int
@@ -15,90 +9,84 @@ class CommentsViewModel: ObservableObject {
     @Published var newCommentText: String = ""
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var currentUserId: Int?
 
     private var cancellables = Set<AnyCancellable>()
 
     init(postId: Int) {
         self.postId = postId
-        fetchComments()
+    }
+
+    func start() {
+        isLoading = true
+        PostHogSDK.shared.capture("comments_screen_opened", properties: ["post_id": postId])
+        fetchCurrentUserAndComments()
+    }
+
+    private func fetchCurrentUserAndComments() {
+        SocialService.shared.fetchCurrentUser { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let user):
+                    self?.currentUserId = user.id
+                    self?.fetchComments()
+                case .failure(let error):
+                    self?.isLoading = false
+                    self?.errorMessage = "Ошибка загрузки профиля: \(error.localizedDescription)"
+                    PostHogSDK.shared.capture("comments_user_fetch_failed", properties: ["post_id": self?.postId ?? 0, "error": error.localizedDescription])
+                }
+            }
+        }
     }
 
     func fetchComments() {
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/social-service/comments/\(postId)") else { return }
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        isLoading = true
-        URLSession.shared.dataTaskPublisher(for: req)
-            .map(\.data)
-            .decode(type: [Comment].self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] completion in
+        SocialService.shared.fetchComments(for: postId) { [weak self] result in
+            DispatchQueue.main.async {
                 self?.isLoading = false
-                if case let .failure(err) = completion {
-                    self?.errorMessage = "Не удалось загрузить комментарии: \(err.localizedDescription)"
+                switch result {
+                case .success(let comments):
+                    self?.comments = comments
+                    PostHogSDK.shared.capture("comments_loaded", properties: ["post_id": self?.postId ?? 0, "count": comments.count])
+                case .failure(let error):
+                    self?.errorMessage = "Не удалось загрузить комментарии: \(error.localizedDescription)"
+                    PostHogSDK.shared.capture("comments_load_failed", properties: ["post_id": self?.postId ?? 0, "error": error.localizedDescription])
                 }
-            } receiveValue: { [weak self] comments in
-                self?.comments = comments
             }
-            .store(in: &cancellables)
+        }
     }
 
     func addComment() {
-        let text = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty,
-              let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/social-service/comments/\(postId)/add")
-        else { return }
+        let trimmed = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
 
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        newCommentText = ""
 
-        let body = ["text": text]
-        req.httpBody = try? JSONEncoder().encode(body)
-
-        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
+        SocialService.shared.addComment(to: postId, text: trimmed) { [weak self] result in
             DispatchQueue.main.async {
-                if let err = error {
-                    self?.errorMessage = "Ошибка отправки: \(err.localizedDescription)"
-                    return
+                switch result {
+                case .success:
+                    self?.fetchComments()
+                    PostHogSDK.shared.capture("comment_added", properties: ["post_id": self?.postId ?? 0])
+                case .failure(let error):
+                    self?.errorMessage = "Ошибка отправки: \(error.localizedDescription)"
+                    PostHogSDK.shared.capture("comment_add_failed", properties: ["post_id": self?.postId ?? 0, "error": error.localizedDescription])
                 }
-                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                    self?.errorMessage = "Сервер вернул ошибку"
-                    return
-                }
-                self?.newCommentText = ""
-                self?.fetchComments()
             }
-        }.resume()
+        }
     }
 
     func deleteComment(_ commentId: Int) {
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/social-service/comments/\(commentId)") else { return }
-        var req = URLRequest(url: url)
-        req.httpMethod = "DELETE"
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        URLSession.shared.dataTask(with: req) { [weak self] _, response, error in
+        SocialService.shared.deleteComment(id: commentId) { [weak self] result in
             DispatchQueue.main.async {
-                if let err = error {
-                    self?.errorMessage = "Ошибка удаления: \(err.localizedDescription)"
-                    return
+                switch result {
+                case .success:
+                    self?.comments.removeAll { $0.id == commentId }
+                    PostHogSDK.shared.capture("comment_deleted", properties: ["post_id": self?.postId ?? 0, "comment_id": commentId])
+                case .failure(let error):
+                    self?.errorMessage = "Ошибка удаления: \(error.localizedDescription)"
+                    PostHogSDK.shared.capture("comment_delete_failed", properties: ["post_id": self?.postId ?? 0, "comment_id": commentId, "error": error.localizedDescription])
                 }
-                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                    self?.errorMessage = "Не удалось удалить комментарий"
-                    return
-                }
-                self?.fetchComments()
             }
-        }.resume()
+        }
     }
 }

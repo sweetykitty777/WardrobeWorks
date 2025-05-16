@@ -1,13 +1,6 @@
-//
-//  ClothingStatsViewModel.swift
-//  diploma
-//
-//  Created by Olga on 03.03.2025.
-//
-
-
 import SwiftUI
 import Combine
+import PostHog
 
 class ClothingStatsViewModel: ObservableObject {
     @Published var clothingStats: [ClothingStat] = []
@@ -20,6 +13,10 @@ class ClothingStatsViewModel: ObservableObject {
             ClothingStat(id: UUID(), clothingItem: "Sneakers", usageCount: 1),
             ClothingStat(id: UUID(), clothingItem: "Cap", usageCount: 0)
         ]
+
+        PostHogSDK.shared.capture("clothing stats viewed", properties: [
+            "items_count": clothingStats.count
+        ])
     }
 
     var totalItems: Int {
@@ -36,20 +33,38 @@ class ClothingStatsViewModel: ObservableObject {
 
     func topFiveItems() -> [(String, String)] {
         let sortedItems = clothingStats.sorted { $0.usageCount > $1.usageCount }.prefix(5)
-        return sortedItems.map { ($0.clothingItem, "\($0.usageCount) раз") }
+        let result = sortedItems.map { ($0.clothingItem, "\($0.usageCount) раз") }
+
+        PostHogSDK.shared.capture("clothing stats top items", properties: [
+            "items": result.map { $0.0 }
+        ])
+
+        return result
     }
 
     func seasonStats() -> [(String, String)] {
-        return [
+        let data = [
             ("Летние вещи", "12"),
             ("Зимние вещи", "8"),
             ("Осенние вещи", "10"),
             ("Весенние вещи", "7")
         ]
+
+        PostHogSDK.shared.capture("clothing stats season breakdown", properties: [
+            "seasons": data.map { $0.0 }
+        ])
+
+        return data
     }
 
     func leastUsedItems() -> [(String, String)] {
         let sortedItems = clothingStats.sorted { $0.usageCount < $1.usageCount }.prefix(3)
-        return sortedItems.map { ($0.clothingItem, "\($0.usageCount) раз") }
+        let result = sortedItems.map { ($0.clothingItem, "\($0.usageCount) раз") }
+
+        PostHogSDK.shared.capture("clothing stats least used", properties: [
+            "items": result.map { $0.0 }
+        ])
+
+        return result
     }
 }

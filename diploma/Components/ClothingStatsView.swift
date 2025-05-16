@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ClothingStatsView: View {
-    @ObservedObject var viewModel: ClothingStatsViewModel
-    @State private var showingFullStats = false 
+    @ObservedObject var viewModel: FullStatsViewModel
+    @State private var showingFullStats = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -21,14 +21,14 @@ struct ClothingStatsView: View {
                 .padding(.horizontal, 20)
 
             HStack(spacing: 10) {
-                statBox(title: "Вещи", value: "\(viewModel.totalItems)")
-                statBox(title: "Аутфиты", value: "\(viewModel.weeklyUsage)")
+                statBox(title: "Вещи", value: "5")
+                statBox(title: "Аутфиты", value: "5")
             }
             .frame(maxWidth: .infinity, maxHeight: 100)
             .padding(.horizontal, 20)
         }
         .sheet(isPresented: $showingFullStats) {
-            FullStatsView(viewModel: viewModel)
+         //   FullStatsView(viewModel: viewModel)
         }
         .padding(.vertical, 20)
     }

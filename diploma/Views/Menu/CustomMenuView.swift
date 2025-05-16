@@ -1,5 +1,5 @@
 import SwiftUI
-
+/*
 struct CustomMenuView: View {
     var onAddClothes: () -> Void
     var onCreateOutfit: () -> Void
@@ -66,3 +66,4 @@ struct CustomMenuView: View {
     }
 }
 
+*/

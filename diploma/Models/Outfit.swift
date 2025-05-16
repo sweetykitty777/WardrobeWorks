@@ -15,3 +15,4 @@ struct Outfit: Identifiable {
         self.imageName = imageName
     }
 }
+

@@ -1,6 +1,3 @@
-// RegisterView.swift
-// diploma
-
 import Foundation
 import SwiftUI
 

@@ -1,12 +1,6 @@
-//
-//  FollowListViewModel.swift
-//  diploma
-//
-//  Created by Olga on 24.04.2025.
-//
-
 import Foundation
 import Combine
+import PostHog
 
 class FollowListViewModel: ObservableObject {
     @Published var users: [UserPreview] = []
@@ -28,8 +22,8 @@ class FollowListViewModel: ObservableObject {
             print("Invalid URL for endpoint: \(endpoint)")
             return
         }
-        
-        print(endpoint)
+
+        PostHogSDK.shared.capture("follow_list_fetch_started", properties: ["endpoint": endpoint])
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -37,7 +31,6 @@ class FollowListViewModel: ObservableObject {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        print("GET \(url.absoluteString)")
         isLoading = true
 
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -46,40 +39,46 @@ class FollowListViewModel: ObservableObject {
 
                 if let error = error {
                     self.errorMessage = error.localizedDescription
-                    print("Network error fetching \(endpoint):", error)
+                    PostHogSDK.shared.capture("follow_list_fetch_failed", properties: [
+                        "endpoint": endpoint,
+                        "error": error.localizedDescription
+                    ])
                     return
                 }
 
                 guard let http = response as? HTTPURLResponse else {
                     self.errorMessage = "Invalid response"
-                    print("No HTTP response for \(endpoint)")
+                    PostHogSDK.shared.capture("follow_list_fetch_failed", properties: [
+                        "endpoint": endpoint,
+                        "error": "Invalid response"
+                    ])
                     return
                 }
-                print("Response status code for \(endpoint):", http.statusCode)
 
                 guard let data = data else {
                     self.errorMessage = "No data received"
-                    print("No data in response for \(endpoint)")
+                    PostHogSDK.shared.capture("follow_list_fetch_failed", properties: [
+                        "endpoint": endpoint,
+                        "error": "No data"
+                    ])
                     return
-                }
-
-                // Выводим сырой JSON-тело
-                if let raw = String(data: data, encoding: .utf8) {
-                    print("Raw response for \(endpoint):\n\(raw)")
-                } else {
-                    print("Raw response for \(endpoint): <non-UTF8 data, \(data.count) bytes>")
                 }
 
                 do {
                     let users = try JSONDecoder().decode([UserPreview].self, from: data)
                     self.users = users
-                    print("Decoded \(users.count) users for \(endpoint)")
+                    PostHogSDK.shared.capture("follow_list_fetch_success", properties: [
+                        "endpoint": endpoint,
+                        "users_count": users.count
+                    ])
                 } catch {
                     self.errorMessage = "Decode error: \(error.localizedDescription)"
-                    print("JSON decode error for \(endpoint):", error)
+                    PostHogSDK.shared.capture("follow_list_fetch_failed", properties: [
+                        "endpoint": endpoint,
+                        "error": "Decode error: \(error.localizedDescription)"
+                    ])
                 }
             }
-        }
-        .resume()
+        }.resume()
     }
 }

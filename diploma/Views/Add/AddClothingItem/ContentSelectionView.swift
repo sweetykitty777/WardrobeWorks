@@ -13,28 +13,31 @@ struct ContentSelectionView<T: NamedItem>: View {
     @Binding var selectedItem: T?
 
     var body: some View {
-        List(items) { item in
-            HStack {
-                if let colorItem = item as? ClothingColor {
-                    Circle()
-                        .fill(Color(hex: colorItem.colourcode))
-                        .frame(width: 20, height: 20)
-                }
+        List {
+            ForEach(items) { item in
+                HStack {
+                    if let colorItem = item as? ClothingColor {
+                        Circle()
+                            .fill(Color(hex: colorItem.colourcode))
+                            .frame(width: 20, height: 20)
+                    }
 
-                Text(item.name)
-                Spacer()
+                    Text(item.name)
+                    Spacer()
 
-                if selectedItem?.id == item.id {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.blue)
+                    if selectedItem?.id == item.id {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.blue)
+                    }
                 }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                selectedItem = item
+                .contentShape(Rectangle()) // Расширяет область нажатия
+                .onTapGesture {
+                    selectedItem = item
+                }
             }
         }
         .navigationTitle("Выбор")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

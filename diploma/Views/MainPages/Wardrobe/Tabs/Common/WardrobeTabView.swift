@@ -74,7 +74,7 @@ struct WardrobeTabView: View {
                 selectedTab: selectedTab,
                 selectedItems: $selectedItems,
                 viewModel: outfitViewModel,
-                wardrobeId: selectedWardrobeId // Pass the selected wardrobe ID here
+                wardrobeId: $selectedWardrobeId
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGroupedBackground))
@@ -83,13 +83,18 @@ struct WardrobeTabView: View {
             wardrobeViewModel.fetchWardrobes()
         }
         .sheet(isPresented: $showingCreateWardrobe) {
-            CreateWardrobeView(viewModel: wardrobeViewModel) { name, isPrivate, completion in
-                wardrobeViewModel.createWardrobe(name: name, isPrivate: isPrivate) {
-                    wardrobeViewModel.fetchWardrobes()
-                    completion()
+            NavigationStack {
+                CreateWardrobeView(viewModel: wardrobeViewModel) { name, isPrivate, completion in
+                    wardrobeViewModel.createWardrobe(name: name, isPrivate: isPrivate) {
+                        wardrobeViewModel.fetchWardrobes()
+                        completion()
+                    }
                 }
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
+
         .sheet(item: $editingWardrobe) { wardrobe in
             EditWardrobeView(
                 wardrobe: wardrobe,
@@ -122,7 +127,7 @@ struct TabContent: View {
     var selectedTab: WardrobeTab
     @Binding var selectedItems: [OutfitItem]
     @ObservedObject var viewModel: OutfitViewModel
-    var wardrobeId: Int?
+    @Binding var wardrobeId: Int?
 
     var body: some View {
         Group {
@@ -131,26 +136,28 @@ struct TabContent: View {
                 if let id = wardrobeId {
                     ClothesView(selectedItems: $selectedItems, wardrobeId: id)
                 } else {
-                    placeholder
+                    placeholderView
                 }
             case .outfits:
                 if let id = wardrobeId {
-                    OutfitsView(viewModel: viewModel, wardrobeId: id)
+                    NavigationStack {
+                        OutfitsView(viewModel: viewModel, wardrobeId: id)
+                    }.applyNavigationRouter()
                 } else {
-                    placeholder
+                    placeholderView
                 }
             case .collections:
                 if let id = wardrobeId {
                     CollectionsView(wardrobeId: id)
                 } else {
-                    placeholder
+                    placeholderView
                 }
             }
         }
         .background(Color.white)
     }
 
-    private var placeholder: some View {
+    private var placeholderView: some View {
         Text("Выберите гардероб")
             .foregroundColor(.gray)
             .font(.subheadline)

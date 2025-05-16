@@ -1,10 +1,3 @@
-//
-//  EditLookbookView.swift
-//  diploma
-//
-//  Created by Olga on 26.04.2025.
-//
-
 import Foundation
 import SwiftUI
 
@@ -33,8 +26,7 @@ struct EditLookbookView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
+        VStack(spacing: 20) {
                 TextField("Название", text: $name)
                     .padding()
                     .background(Color.white)
@@ -89,8 +81,6 @@ struct EditLookbookView: View {
                         .padding(.horizontal)
                 }
                 .disabled(isDeleting)
-
-            }
             .navigationTitle("Редактировать")
             .navigationBarItems(leading: Button("Отмена") {
                 presentationMode.wrappedValue.dismiss()
@@ -101,7 +91,7 @@ struct EditLookbookView: View {
 
     private func updateLookbook() {
         isSaving = true
-        LookbookService.shared.updateLookbook(lookbookId: lookbookId, name: name, description: descriptionText) { result in
+        WardrobeService.shared.updateLookbook(lookbookId: lookbookId, name: name, description: descriptionText) { result in
             DispatchQueue.main.async {
                 isSaving = false
                 switch result {
@@ -117,7 +107,7 @@ struct EditLookbookView: View {
 
     private func deleteLookbook() {
         isDeleting = true
-        LookbookService.shared.deleteLookbook(lookbookId: lookbookId) { result in
+        WardrobeService.shared.deleteLookbook(lookbookId: lookbookId) { result in
             DispatchQueue.main.async {
                 isDeleting = false
                 switch result {

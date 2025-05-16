@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import PostHog
 
 class AddClothingItemViewModel: ObservableObject {
     @Published var itemName: String = ""
@@ -21,22 +22,26 @@ class AddClothingItemViewModel: ObservableObject {
     @Published var brands: [ClothingContentItem] = []
     @Published var colors: [ClothingColor] = []
     
-    
     @Published var selectedColor: ClothingColor?
     @Published var selectedType: ClothingContentItem?
     @Published var selectedSeason: ClothingContentItem?
     @Published var selectedBrand: ClothingContentItem?
+    @Published var isSaving: Bool = false
 
 
-    
     func fetchContentData() {
         WardrobeService.shared.fetchClothingTypes { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let types):
                     self.clothingTypes = types
+                    PostHogSDK.shared.capture("clothing content loaded", properties: ["type": "types"])
                 case .failure(let error):
                     print("Ошибка загрузки типов одежды: \(error)")
+                    PostHogSDK.shared.capture("clothing content load failed", properties: [
+                        "type": "types",
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
@@ -46,8 +51,13 @@ class AddClothingItemViewModel: ObservableObject {
                 switch result {
                 case .success(let seasons):
                     self.seasons = seasons
+                    PostHogSDK.shared.capture("clothing content loaded", properties: ["type": "seasons"])
                 case .failure(let error):
                     print("Ошибка загрузки сезонов: \(error)")
+                    PostHogSDK.shared.capture("clothing content load failed", properties: [
+                        "type": "seasons",
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
@@ -57,8 +67,13 @@ class AddClothingItemViewModel: ObservableObject {
                 switch result {
                 case .success(let brands):
                     self.brands = brands
+                    PostHogSDK.shared.capture("clothing content loaded", properties: ["type": "brands"])
                 case .failure(let error):
-                    print("Ошибка загрузки сезонов: \(error)")
+                    print("Ошибка загрузки брендов: \(error)")
+                    PostHogSDK.shared.capture("clothing content load failed", properties: [
+                        "type": "brands",
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
@@ -68,14 +83,17 @@ class AddClothingItemViewModel: ObservableObject {
                 switch result {
                 case .success(let list):
                     self.colors = list
+                    PostHogSDK.shared.capture("clothing content loaded", properties: ["type": "colors"])
                 case .failure(let error):
                     print("Ошибка загрузки цветов: \(error)")
+                    PostHogSDK.shared.capture("clothing content load failed", properties: [
+                        "type": "colors",
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
     }
-
-    
 
     func fetchWardrobes() {
         WardrobeService.shared.fetchWardrobes { result in
@@ -87,14 +105,30 @@ class AddClothingItemViewModel: ObservableObject {
                         self.selectedWardrobeId = list.first?.id
                         self.selectedWardrobeName = list.first?.name ?? "Выбрать"
                     }
+                    PostHogSDK.shared.capture("wardrobes loaded", properties: [
+                        "count": list.count
+                    ])
                 case .failure(let error):
                     print("Ошибка загрузки гардеробов: \(error)")
+                    PostHogSDK.shared.capture("wardrobes load failed", properties: [
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
     }
 
     func saveItem(wardrobeId: Int, completion: @escaping (Bool) -> Void) {
+        guard !isSaving else { return } // предотвратить дублирование
+        isSaving = true
+
+        func complete(_ success: Bool) {
+            DispatchQueue.main.async {
+                self.isSaving = false
+                completion(success)
+            }
+        }
+
         func submitClothing(with imageUrl: String) {
             let request = CreateClothingItemRequest(
                 price: Int(price) ?? 0,
@@ -107,33 +141,50 @@ class AddClothingItemViewModel: ObservableObject {
             )
 
             WardrobeService.shared.createClothingItem(wardrobeId: wardrobeId, request: request) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success():
-                        completion(true)
-                    case .failure(let error):
-                        print("Ошибка создания вещи: \(error)")
-                        completion(false)
-                    }
+                switch result {
+                case .success:
+                    PostHogSDK.shared.capture("clothing item created", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "type_id": request.typeId,
+                        "color_id": request.colourId,
+                        "season_id": request.seasonId,
+                        "brand_id": request.brandId,
+                        "has_image": !imageUrl.isEmpty
+                    ])
+                    complete(true)
+                case .failure(let error):
+                    print("Ошибка создания вещи: \(error)")
+                    PostHogSDK.shared.capture("clothing item create failed", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription
+                    ])
+                    complete(false)
                 }
             }
         }
 
         if let image = selectedImage {
-            ImageUploadService.shared.uploadImage(image) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let imageUrl):
-                        submitClothing(with: imageUrl)
-                    case .failure(let error):
-                        print("Ошибка загрузки изображения: \(error)")
-                        completion(false)
+            WardrobeService.shared.uploadPNGImage(image) { result in
+                switch result {
+                case .success(let imageUrl):
+                    if let image = self.selectedImage {
+                        ImageCache.shared.setImage(image, forKey: imageUrl)
                     }
+                    submitClothing(with: imageUrl)
+                case .failure(let error):
+                    print("Ошибка загрузки изображения: \(error)")
+                    PostHogSDK.shared.capture("clothing item create failed", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription,
+                        "stage": "image upload"
+                    ])
+                    complete(false)
                 }
             }
         } else {
             submitClothing(with: "")
         }
+
     }
 
 

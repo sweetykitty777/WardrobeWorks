@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct LookbookResponse: Identifiable, Codable {
+struct LookbookResponse: Identifiable, Codable, Hashable {
     let id: Int
     let wardrobeId: Int
     let createdAt: Date?

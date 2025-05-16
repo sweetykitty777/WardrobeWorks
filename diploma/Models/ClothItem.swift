@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ClothItem: Identifiable, Decodable {
+struct ClothItem: Identifiable, Decodable, Hashable {
     var id: Int
     var createdAt: String?
     var description: String?

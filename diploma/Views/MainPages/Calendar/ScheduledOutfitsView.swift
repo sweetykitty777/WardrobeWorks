@@ -12,6 +12,15 @@ struct ScheduledOutfitView: View {
                     .padding(.top, 4)
                     .frame(maxWidth: .infinity, alignment: .center)
 
+
+                if let note = scheduled.eventNote, !note.isEmpty {
+                    Text(note)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                        .multilineTextAlignment(.center)
+                }
+
                 Button(action: {
                     showingDeleteConfirmation = true
                 }) {
@@ -48,6 +57,7 @@ struct ScheduledOutfitView: View {
                 .frame(maxWidth: .infinity)
         }
     }
+
 
     private var toastOverlay: some View {
         Group {

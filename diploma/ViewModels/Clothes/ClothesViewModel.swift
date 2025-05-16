@@ -1,43 +1,41 @@
-//
-//  ClothesViewModel.swift
-//  diploma
-//
-//  Created by Olga on 21.04.2025.
-//
-
 import Foundation
 import SwiftUI
+import PostHog
 
 class ClothesViewModel: ObservableObject {
     @Published var clothes: [ClothItem] = []
+    @Published var errorMessage: String?
+    @Published var isLoading: Bool = false
+    
+    @StateObject private var clothesViewModel = ClothesViewModel()
+    
+
 
     func fetchClothes(for wardrobeId: Int) {
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/wardrobe-service/clothes/\(wardrobeId)/all") else {
-            print("Invalid URL")
-            return
-        }
+        isLoading = true
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        WardrobeService.shared.fetchClothes(for: wardrobeId) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
 
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+                switch result {
+                case .success(let items):
+                    self?.clothes = items
 
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let data = data {
-                do {
-                    let decoded = try JSONDecoder().decode([ClothItem].self, from: data)
-                    DispatchQueue.main.async {
-                        self.clothes = decoded
-                    }
-                } catch {
-                    print("Ошибка декодирования: \(error)")
+                    PostHogSDK.shared.capture("clothes loaded", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "count": items.count
+                    ])
+
+                case .failure(let error):
+                    self?.errorMessage = "Ошибка загрузки одежды: \(error.localizedDescription)"
+
+                    PostHogSDK.shared.capture("clothes load failed", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription
+                    ])
                 }
-            } else if let error = error {
-                print("Ошибка сети: \(error)")
             }
-        }.resume()
+        }
     }
 }

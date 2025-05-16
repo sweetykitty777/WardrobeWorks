@@ -7,7 +7,7 @@
 
 import Foundation
 import SwiftUI
-
+/*
 struct DraggableItemStaticView: View {
     let item: PlacedClothingItem
     let imageURL: String
@@ -18,3 +18,4 @@ struct DraggableItemStaticView: View {
             .position(x: item.x, y: item.y)
     }
 }
+*/

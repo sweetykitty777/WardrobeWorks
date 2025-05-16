@@ -26,3 +26,4 @@ struct ClothingItem: Identifiable, Codable {
         return nil
     }
 }
+

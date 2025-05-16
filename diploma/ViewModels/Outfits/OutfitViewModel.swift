@@ -1,136 +1,99 @@
 import Foundation
 import SwiftUI
 import Combine
+import PostHog
 
 class OutfitViewModel: ObservableObject {
     @Published var outfits: [OutfitResponse] = []
+    @Published var isLoading = false
 
     func addOutfit(name: String, description: String, wardrobeId: Int, placedItems: [PlacedClothingItem]) {
-        let clothesData = placedItems.map { item in
-            return [
-                "clothId": item.clothId,
-                "x": item.x,
-                "y": item.y,
-                "rotation": item.rotation,
-                "scale": item.scale,
-                "zindex": item.zIndex
-            ] as [String: Any]
+        let clothesData = placedItems.map {
+            OutfitClothPlacement(
+                clothId: $0.clothId,
+                x: $0.x,
+                y: $0.y,
+                rotation: $0.rotation,
+                scale: $0.scale,
+                zindex: $0.zIndex
+            )
         }
 
-        let payload: [String: Any] = [
-            "name": name,
-            "description": description,
-            "wardrobeId": wardrobeId,
-            "imagePath": "", 
-            "clothes": clothesData
-        ]
+        let payload = FullOutfitEditRequest(
+            name: name,
+            description: description,
+            imagePath: "",
+            clothes: clothesData
+        )
 
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/wardrobe-service/outfits/create") else {
-            print("Невалидный URL")
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
-       /* if let token = KeychainHelper.get(forKey: "accessToken") {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }*/
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-        } catch {
-            print("Ошибка сериализации: \(error)")
-            return
-        }
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        WardrobeService.shared.createOutfit(wardrobeId: wardrobeId, payload: payload) { result in
             DispatchQueue.main.async {
-                if let error = error {
-                    print("Ошибка запроса: \(error)")
-                    return
-                }
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("Нет ответа от сервера")
-                    return
-                }
-
-                print("Ответ сервера: \(httpResponse.statusCode)")
-                if let data = data {
-                    print("Ответ: \(String(data: data, encoding: .utf8) ?? "—")")
-                }
-
-                if (200..<300).contains(httpResponse.statusCode) {
-                    print("Аутфит успешно создан")
-                } else {
-                    print("Сервер вернул ошибку")
+                switch result {
+                case .success:
+                    PostHogSDK.shared.capture("outfit created", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "items_count": clothesData.count
+                    ])
+                case .failure(let error):
+                    PostHogSDK.shared.capture("outfit create failed", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription
+                    ])
                 }
             }
-        }.resume()
+        }
     }
-
+    
     func fetchOutfits(for wardrobeId: Int) {
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/wardrobe-service/outfits/wardrobe=\(wardrobeId)/all") else {
-            print("Невалидный URL")
-            return
-        }
+        isLoading = true
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        if let token = KeychainHelper.get(forKey: "accessToken") {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        WardrobeService.shared.fetchOutfits(for: wardrobeId) { result in
             DispatchQueue.main.async {
-                if let error = error {
-                    print("Ошибка запроса: \(error)")
-                    return
-                }
+                self.isLoading = false
 
-                guard let data = data else {
-                    print("Пустой ответ от сервера")
-                    return
-                }
-
-                do {
-                    let decoder = JSONDecoder()
-                    let formatter = ISO8601DateFormatter()
-                    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-                    decoder.dateDecodingStrategy = .custom { decoder in
-                        let container = try decoder.singleValueContainer()
-                        let dateStr = try container.decode(String.self)
-
-                        if let date = formatter.date(from: dateStr) {
-                            return date
-                        } else {
-                            throw DecodingError.dataCorruptedError(
-                                in: container,
-                                debugDescription: "Invalid ISO8601 date: \(dateStr)"
-                            )
-                        }
-                    }
-
-                    let fetchedOutfits = try decoder.decode([OutfitResponse].self, from: data)
-                    self.outfits = fetchedOutfits
-                    print("Аутфиты успешно загружены: \(fetchedOutfits.count)")
-                } catch {
-                    print("Ошибка декодирования: \(error)")
-                    if let raw = String(data: data, encoding: .utf8) {
-                        print("Ответ сервера:\n\(raw)")
-                    }
+                switch result {
+                case .success(let outfits):
+                    self.outfits = outfits
+                    PostHogSDK.shared.capture("outfits loaded", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "count": outfits.count
+                    ])
+                case .failure(let error):
+                    self.outfits = []
+                    PostHogSDK.shared.capture("outfits load failed", properties: [
+                        "wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription
+                    ])
                 }
             }
-        }.resume()
+        }
     }
 
+
+    func fetchOutfit(id: Int, completion: @escaping (Result<OutfitResponse, Error>) -> Void) {
+        WardrobeService.shared.fetchOutfit(id: id) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let outfit):
+                    completion(.success(outfit))
+                    PostHogSDK.shared.capture("outfit loaded", properties: ["outfit_id": id])
+                case .failure(let error):
+                    completion(.failure(error))
+                    PostHogSDK.shared.capture("outfit load failed", properties: [
+                        "outfit_id": id,
+                        "error": error.localizedDescription
+                    ])
+                }
+            }
+        }
+    }
 
     func removeOutfit(_ outfit: OutfitResponse) {
         outfits.removeAll { $0.id == outfit.id }
         print("Аутфит удален: \(outfit.name)")
+        PostHogSDK.shared.capture("outfit removed", properties: [
+            "outfit_id": outfit.id,
+            "name": outfit.name
+        ])
     }
 }

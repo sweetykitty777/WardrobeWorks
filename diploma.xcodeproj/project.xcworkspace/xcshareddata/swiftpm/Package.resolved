@@ -1,0 +1,33 @@
+{
+  "originHash" : "56e127f643cb0f4ec7a6f5c5442d92be175076d4880feff6d7d8484441923115",
+  "pins" : [
+    {
+      "identity" : "dategrid",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/yodagamaheshan/DateGrid.git",
+      "state" : {
+        "revision" : "68378c8276f2d57569fa492188e1d098ea56869b",
+        "version" : "0.0.3"
+      }
+    },
+    {
+      "identity" : "posthog-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PostHog/posthog-ios.git",
+      "state" : {
+        "revision" : "d640df892fcb3bbeadf02b9ec28eeb682df53d24",
+        "version" : "3.25.0"
+      }
+    },
+    {
+      "identity" : "swiftybeaver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftyBeaver/SwiftyBeaver.git",
+      "state" : {
+        "revision" : "8cba041db09596183331d123f337d0eb2e6e8e91",
+        "version" : "2.1.1"
+      }
+    }
+  ],
+  "version" : 3
+}

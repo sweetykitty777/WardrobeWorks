@@ -1,18 +1,16 @@
 import Foundation
 import UIKit
 
-/// Собирает финальное изображение аутфита с прозрачным фоном и сохраняет его как PNG
+
 struct OutfitImageBuilder {
-    /// Рендерит изображение из наложенных вещей
+
     static func renderImage(
         from items: [PlacedClothingItem],
         images: [Int: UIImage],
         canvasSize: CGSize,
         completion: @escaping (UIImage?) -> Void
     ) {
-        print("📐 Начинаем рендер → items: \(items.count)")
 
-        // Расчет границ наложения
         let padding: CGFloat = 20
         var minX = CGFloat.greatestFiniteMagnitude
         var minY = CGFloat.greatestFiniteMagnitude
@@ -29,27 +27,21 @@ struct OutfitImageBuilder {
             maxY = max(maxY, y + size.height)
         }
 
-        // Размер конечного холста с отступами
         let fittedWidth = maxX - minX + padding * 2
         let fittedHeight = maxY - minY + padding * 2
         let fittedCanvasSize = CGSize(width: fittedWidth, height: fittedHeight)
 
-        print("🎯 Новая область рендера: \(fittedCanvasSize), смещение: (\(minX), \(minY))")
 
-        // Формат рендерера с поддержкой альфа-канала
+
         let format = UIGraphicsImageRendererFormat()
         format.scale = UIScreen.main.scale
-        format.opaque = false  // важно: разрешить прозрачность
+        format.opaque = false
 
         let renderer = UIGraphicsImageRenderer(size: fittedCanvasSize, format: format)
 
         let finalImage = renderer.image { context in
-            // Ничего не заливаем — фон будет прозрачным
-            
-            // Рисуем каждый элемент в порядке zIndex
             for item in items.sorted(by: { $0.zIndex < $1.zIndex }) {
                 guard let image = images[item.clothId] else {
-                    print("❌ Нет изображения для clothId \(item.clothId)")
                     continue
                 }
 

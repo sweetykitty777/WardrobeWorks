@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 
+/*
+
 enum OutfitRenderer {
     static func render<V: View>(view: V, size: CGSize, completion: @escaping (Result<UIImage, Error>) -> Void) {
         let controller = UIHostingController(rootView: view)
@@ -24,3 +26,4 @@ enum OutfitRenderer {
         }
     }
 }
+*/

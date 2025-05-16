@@ -2,20 +2,23 @@ import SwiftUI
 
 struct CollectionsView: View {
     @State private var collections: [LookbookResponse] = []
-    @State private var showingNewCollectionSheet = false
+    @State private var showingNewCollection = false
     @State private var editingCollection: LookbookResponse? = nil
-    
+
     var wardrobeId: Int
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                ScrollView {
+        VStack(spacing: 0) {
+            ScrollView {
+                if collections.isEmpty {
+                    Text("У вас пока нет лукбуков")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .padding()
+                } else {
                     LazyVStack(spacing: 12) {
                         ForEach(collections, id: \.id) { collection in
-                            NavigationLink {
-                                LookbookDetailView(lookbook: collection, wardrobeId: wardrobeId)
-                            } label: {
+                            NavigationLink(value: collection) {
                                 LookbookListItemView(
                                     title: collection.name,
                                     subtitle: collection.description,
@@ -30,33 +33,41 @@ struct CollectionsView: View {
                     }
                     .padding(.top)
                 }
-
-                Divider()
-
-                Button(action: {
-                    showingNewCollectionSheet = true
-                }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Добавить новый лукбук")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.blue)
-                    .padding()
-                }
             }
-            .navigationBarHidden(true)
-            .onAppear {
-                fetchLookbooks(for: wardrobeId)
+
+            Divider()
+
+            Button(action: {
+                showingNewCollection = true
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Добавить новый лукбук")
+                }
+                .font(.headline)
+                .foregroundColor(.blue)
+                .padding()
             }
         }
-        .sheet(isPresented: $showingNewCollectionSheet) {
-            NewCollectionView(
-                onCreate: {
-                    fetchLookbooks(for: wardrobeId)
-                },
-                isPresented: $showingNewCollectionSheet
-            )
+        .navigationDestination(for: LookbookResponse.self) { collection in
+            LookbookDetailView(lookbook: collection, wardrobeId: collection.wardrobeId)
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            fetchLookbooks(for: wardrobeId)
+        }
+        .onChange(of: wardrobeId) { newId in
+            fetchLookbooks(for: newId)
+        }
+        .fullScreenCover(isPresented: $showingNewCollection) {
+            NavigationStack {
+                NewCollectionView(
+                    onCreate: {
+                        fetchLookbooks(for: wardrobeId)
+                    },
+                    isPresented: $showingNewCollection
+                )
+            }
         }
         .sheet(item: $editingCollection) { collection in
             EditLookbookView(
@@ -71,16 +82,17 @@ struct CollectionsView: View {
                 }
             )
         }
-
     }
 
     private func fetchLookbooks(for wardrobeId: Int) {
-        LookbookService.shared.fetchLookbooks(for: wardrobeId) { result in
-            switch result {
-            case .success(let fetched):
-                collections = fetched
-            case .failure(let error):
-                print("Ошибка загрузки лукбуков: \(error)")
+        WardrobeService.shared.fetchLookbooks(for: wardrobeId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let fetched):
+                    collections = fetched
+                case .failure(let error):
+                    print("Ошибка загрузки лукбуков: \(error)")
+                }
             }
         }
     }

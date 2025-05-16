@@ -1,10 +1,6 @@
-//
-//  OtherUserProfileViewModel.swift
-//  diploma
-//
-
 import Foundation
 import Combine
+import PostHog
 
 class OtherUserProfileViewModel: ObservableObject {
     @Published var user: UserProfile = UserProfile(id: 0, username: "", bio: nil, avatar: nil)
@@ -19,6 +15,7 @@ class OtherUserProfileViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     func loadProfile(for userId: Int) {
+        PostHogSDK.shared.capture("other_profile_opened", properties: ["user_id": userId])
         fetchUser(userId: userId)
         fetchUserPosts(userId: userId)
         fetchWardrobesAndContent(for: userId)
@@ -26,24 +23,26 @@ class OtherUserProfileViewModel: ObservableObject {
     }
 
     private func fetchUser(userId: Int) {
-        UserProfileService.shared.fetchUserById(userId) { result in
+        SocialService.shared.fetchUserById(userId) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let user):
                     self.user = user
+                    PostHogSDK.shared.capture("other_profile_loaded", properties: ["user_id": user.id])
                 case .failure(let error):
-                    print("Ошибка загрузки пользователя:", error)
+                    PostHogSDK.shared.capture("other_profile_load_failed", properties: ["user_id": userId, "error": error.localizedDescription])
                 }
             }
         }
     }
 
     private func fetchUserPosts(userId: Int) {
-        PostService.shared.fetchUserPosts(userId: userId) { result in
+        SocialService.shared.fetchUserPosts(userId: userId) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let posts):
                     self.posts = posts
+                    PostHogSDK.shared.capture("other_user_posts_loaded", properties: ["user_id": userId, "count": posts.count])
                 case .failure(let error):
                     print("Ошибка загрузки постов:", error)
                 }
@@ -56,30 +55,9 @@ class OtherUserProfileViewModel: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let wardrobes):
+                    PostHogSDK.shared.capture("other_user_wardrobes_loaded", properties: ["user_id": userId, "count": wardrobes.count])
                     for wardrobe in wardrobes {
-                        WardrobeService.shared.fetchClothes(for: wardrobe.id) { clothesResult in
-                            if case let .success(clothes) = clothesResult {
-                                DispatchQueue.main.async {
-                                    self.publicItems.append(contentsOf: clothes)
-                                }
-                            }
-                        }
-
-                        OutfitService.shared.fetchOutfits(for: wardrobe.id) { outfitsResult in
-                            if case let .success(outfits) = outfitsResult {
-                                DispatchQueue.main.async {
-                                    self.publicOutfits.append(contentsOf: outfits)
-                                }
-                            }
-                        }
-
-                        LookbookService.shared.fetchLookbooks(for: wardrobe.id) { lookbookResult in
-                            if case let .success(lookbooks) = lookbookResult {
-                                DispatchQueue.main.async {
-                                    self.publicLookbooks.append(contentsOf: lookbooks)
-                                }
-                            }
-                        }
+                        self.loadContent(for: wardrobe.id)
                     }
                 case .failure(let error):
                     print("Ошибка загрузки гардеробов:", error)
@@ -88,102 +66,74 @@ class OtherUserProfileViewModel: ObservableObject {
         }
     }
 
-    func checkFollowing(followedId: Int) {
-        guard let token = KeychainHelper.get(forKey: "accessToken"),
-              let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/social-service/follow/is-following/\(followedId)")
-        else {
-            print("Неверный URL для проверки подписки")
-            return
+    private func loadContent(for wardrobeId: Int) {
+        WardrobeService.shared.fetchClothes(for: wardrobeId) { clothesResult in
+            if case let .success(clothes) = clothesResult {
+                DispatchQueue.main.async {
+                    let existingIds = Set(self.publicItems.map { $0.id })
+                    let uniqueClothes = clothes.filter { !existingIds.contains($0.id) }
+                    self.publicItems.append(contentsOf: uniqueClothes)
+                    PostHogSDK.shared.capture("other_user_clothes_loaded", properties: ["wardrobe_id": wardrobeId, "count": uniqueClothes.count])
+                }
+            }
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue("*/*", forHTTPHeaderField: "Accept")
-
-        URLSession.shared.dataTaskPublisher(for: request)
-            .handleEvents(receiveOutput: { output in
-                if let raw = String(data: output.data, encoding: .utf8) {
-                    print("is-following raw response:", raw)
+        WardrobeService.shared.fetchOutfits(for: wardrobeId) { outfitsResult in
+            if case let .success(outfits) = outfitsResult {
+                DispatchQueue.main.async {
+                    let existingIds = Set(self.publicOutfits.map { $0.id })
+                    let uniqueOutfits = outfits.filter { !existingIds.contains($0.id) }
+                    self.publicOutfits.append(contentsOf: uniqueOutfits)
+                    PostHogSDK.shared.capture("other_user_outfits_loaded", properties: ["wardrobe_id": wardrobeId, "count": uniqueOutfits.count])
                 }
-            })
-            .tryMap { output -> Data in
-                let code = (output.response as? HTTPURLResponse)?.statusCode ?? -1
-                guard (200...299).contains(code) else {
-                    throw URLError(.badServerResponse)
-                }
-                return output.data
             }
-            .decode(type: Bool.self, decoder: JSONDecoder())
-            .replaceError(with: false)
-            .receive(on: DispatchQueue.main)
-            .sink { _ in } receiveValue: { isFollowing in
-                print("Результат is-following(\(followedId)):", isFollowing)
+        }
+
+        WardrobeService.shared.fetchLookbooks(for: wardrobeId) { lookbookResult in
+            if case let .success(lookbooks) = lookbookResult {
+                DispatchQueue.main.async {
+                    let existingIds = Set(self.publicLookbooks.map { $0.id })
+                    let uniqueLookbooks = lookbooks.filter { !existingIds.contains($0.id) }
+                    self.publicLookbooks.append(contentsOf: uniqueLookbooks)
+                    PostHogSDK.shared.capture("other_user_lookbooks_loaded", properties: ["wardrobe_id": wardrobeId, "count": uniqueLookbooks.count])
+                }
+            }
+        }
+    }
+
+    func checkFollowing(followedId: Int) {
+        loadingFollowState = true
+        SocialService.shared.isFollowing(userId: followedId) { isFollowing in
+            DispatchQueue.main.async {
+                self.loadingFollowState = false
                 self.isFollowing = isFollowing
             }
-            .store(in: &cancellables)
+        }
     }
 
     func follow(followedId: Int) {
-        changeFollowState(followedId: followedId, method: "POST") { success in
-            if success {
-                self.isFollowing = true
-                print("Теперь вы подписаны на пользователя \(followedId)")
-            } else {
-                print("Не удалось подписаться на пользователя \(followedId)")
+        loadingFollowState = true
+        SocialService.shared.follow(userId: followedId) { success in
+            DispatchQueue.main.async {
+                self.loadingFollowState = false
+                if success {
+                    self.isFollowing = true
+                    PostHogSDK.shared.capture("user_followed", properties: ["followed_id": followedId])
+                }
             }
         }
     }
 
     func unfollow(followedId: Int) {
-        changeFollowState(followedId: followedId, method: "DELETE") { success in
-            if success {
-                self.isFollowing = false
-                print("Вы отписались от пользователя \(followedId)")
-            } else {
-                print("Не удалось отписаться от пользователя \(followedId)")
-            }
-        }
-    }
-
-    private func changeFollowState(followedId: Int, method: String, completion: @escaping (Bool) -> Void) {
-        guard let token = KeychainHelper.get(forKey: "accessToken"),
-              let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/social-service/follow/\(followedId)")
-        else {
-            print("Неверный URL для follow/unfollow")
-            return
-        }
-
         loadingFollowState = true
-
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue("*/*", forHTTPHeaderField: "Accept")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        SocialService.shared.unfollow(userId: followedId) { success in
             DispatchQueue.main.async {
                 self.loadingFollowState = false
-
-                if let http = response as? HTTPURLResponse {
-                    print("Ответ follow \(method):", http.statusCode)
-                }
-
-                if let data = data, let body = String(data: data, encoding: .utf8) {
-                    print("follow \(method) response body:", body)
-                }
-
-                if let http = response as? HTTPURLResponse {
-                    completion((200...299).contains(http.statusCode))
-                } else {
-                    print("Нет HTTP-ответа при \(method) follow")
-                    completion(false)
-                }
-
-                if let err = error {
-                    print("Ошибка network follow \(method):", err)
+                if success {
+                    self.isFollowing = false
+                    PostHogSDK.shared.capture("user_unfollowed", properties: ["unfollowed_id": followedId])
                 }
             }
-        }.resume()
+        }
     }
 }

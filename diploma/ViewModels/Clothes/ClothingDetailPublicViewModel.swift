@@ -1,12 +1,6 @@
-//
-//  ClothingDetailPublicViewModel.swift
-//  diploma
-//
-//  Created by Olga on 26.04.2025.
-//
-
 import Foundation
 import SwiftUI
+import PostHog
 
 class ClothingDetailPublicViewModel: ObservableObject {
     @Published var wardrobes: [UsersWardrobe] = []
@@ -17,36 +11,38 @@ class ClothingDetailPublicViewModel: ObservableObject {
                 switch result {
                 case .success(let wardrobes):
                     self.wardrobes = wardrobes
+                    PostHogSDK.shared.capture("public clothing wardrobes loaded", properties: [
+                        "count": wardrobes.count
+                    ])
                 case .failure(let error):
                     print("Ошибка загрузки гардеробов:", error)
+                    PostHogSDK.shared.capture("public clothing wardrobes failed", properties: [
+                        "error": error.localizedDescription
+                    ])
                 }
             }
         }
     }
 
     func copyItem(clothId: Int, to wardrobeId: Int, completion: @escaping () -> Void) {
-        guard let token = KeychainHelper.get(forKey: "accessToken") else { return }
-        guard let url = URL(string: "https://gate-acidnaya.amvera.io/api/v1/wardrobe-service/clothes/\(clothId)/copy/\(wardrobeId)") else { return }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("*/*", forHTTPHeaderField: "Accept")
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        WardrobeService.shared.copyItem(clothId: clothId, to: wardrobeId) { result in
             DispatchQueue.main.async {
-                if let error = error {
-                    print("Ошибка копирования:", error.localizedDescription)
-                    return
-                }
-                if let httpResponse = response as? HTTPURLResponse {
-                    if (200...299).contains(httpResponse.statusCode) {
-                        completion()
-                    } else {
-                        print("Сервер вернул ошибку при копировании: \(httpResponse.statusCode)")
-                    }
+                switch result {
+                case .success:
+                    PostHogSDK.shared.capture("clothing item copied", properties: [
+                        "cloth_id": clothId,
+                        "to_wardrobe_id": wardrobeId
+                    ])
+                    completion()
+                case .failure(let error):
+                    print("Ошибка копирования вещи: \(error.localizedDescription)")
+                    PostHogSDK.shared.capture("clothing item copy failed", properties: [
+                        "cloth_id": clothId,
+                        "to_wardrobe_id": wardrobeId,
+                        "error": error.localizedDescription
+                    ])
                 }
             }
-        }.resume()
+        }
     }
 }

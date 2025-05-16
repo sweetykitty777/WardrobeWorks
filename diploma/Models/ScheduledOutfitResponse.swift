@@ -19,3 +19,4 @@ struct ScheduledOutfitResponse: Codable, Identifiable {
         case id, userId, outfit, date, eventNote, calendarId
     }
 }
+

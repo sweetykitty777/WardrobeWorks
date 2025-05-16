@@ -6,13 +6,20 @@
 //
 
 import SwiftUI
+import PostHog
 
 @main
 struct diplomaApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject var deepLinkManager = DeepLinkManager()
+
     var body: some Scene {
         WindowGroup {
             AppRootView()
-         //    WeeklyCalendarView()
+                .environmentObject(deepLinkManager)
+                .onOpenURL { url in
+                    deepLinkManager.handle(url: url)
+                }
         }
     }
 }

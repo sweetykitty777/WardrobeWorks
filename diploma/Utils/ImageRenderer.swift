@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 import UIKit
-
+/*
 @MainActor
 class ImageRenderer {
     /// Преобразует SwiftUI View в UIImage
@@ -27,3 +27,4 @@ class ImageRenderer {
         }
     }
 }
+*/

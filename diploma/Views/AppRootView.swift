@@ -1,49 +1,48 @@
-//
-//  AppRootView.swift
-//  diploma
-//
-//  Created by Olga on 13.04.2025.
-//
-
 import SwiftUI
-import Foundation
+import os
 
 struct AppRootView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @ObservedObject private var tokenManager = TokenManager.shared
+    @EnvironmentObject var deepLinkManager: DeepLinkManager
+    @State private var didPreload = false
 
     var body: some View {
-        Group {
-            if tokenManager.sessionExpired {
-                SessionExpiredView {
-                    tokenManager.stopMonitoring()
-                    authViewModel.logout()
-                }
-            } else if authViewModel.isAuthenticated {
-                WeeklyCalendarView()
-                    .environmentObject(authViewModel)
-            } else {
-                AuthView(viewModel: authViewModel)
-            }
-        }
-        .onAppear {
-            if let token = KeychainHelper.get(forKey: "accessToken") {
-                print("Найден токен: \(token)")
+        NavigationStack {
+            Group {
+                if let token = deepLinkManager.resetPasswordToken {
+                    ResetPasswordView(token: token) {
+                        deepLinkManager.resetPasswordToken = nil
+                    }
 
-                if let expDate = JWTDecoder.decodeExpiration(from: token) {
-                    if expDate > Date() {
-                        print("Токен действителен до \(expDate)")
-                        authViewModel.isAuthenticated = true
-                        TokenManager.shared.startMonitoring(token: token)
-                    } else {
-                        print("Токен истёк \(expDate)")
+
+                } else if tokenManager.sessionExpired {
+                    SessionExpiredView {
+                        tokenManager.stopMonitoring()
                         authViewModel.logout()
                     }
+
+
+                } else if authViewModel.isAuthenticated {
+                    WeeklyCalendarView()
+                        .environmentObject(authViewModel)
+                        .onAppear {
+                            if !didPreload {
+                                // PreloadManager.shared.preloadResources()
+                                didPreload = true
+                            }
+                        }
+
+                // Не авторизован
                 } else {
-                    print("Ошибка декодирования токена")
-                    authViewModel.logout()
+                    AuthView(viewModel: authViewModel)
                 }
             }
+            .applyNavigationRouter()
+        }
+        .onAppear {
+            logger.info("AppRootView appeared. Logging initialized.")
+            authViewModel.checkExistingToken()
         }
     }
 }

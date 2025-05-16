@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import PostHog
 
 class WeeklyCalendarViewModel: ObservableObject {
     @Published var currentWeek: [CalendarDay] = []
@@ -20,15 +21,14 @@ class WeeklyCalendarViewModel: ObservableObject {
     }
 
     var weekRange: String {
-        guard let startOfWeek = currentWeek.first?.date,
-              let endOfWeek = currentWeek.last?.date else { return "" }
-        return "\(startOfWeek.formattedShort) - \(endOfWeek.formattedShort)"
+        guard let start = currentWeek.first?.date, let end = currentWeek.last?.date else { return "" }
+        return "\(start.formattedShort) - \(end.formattedShort)"
     }
 
     func updateCurrentWeek() {
         guard let weekInterval = calendarSystem.dateInterval(of: .weekOfYear, for: selectedDate) else { return }
-        let today = Date()
 
+        let today = Date()
         currentWeek = (0..<7).compactMap { offset in
             if let date = calendarSystem.date(byAdding: .day, value: offset, to: weekInterval.start) {
                 return CalendarDay(
@@ -42,71 +42,81 @@ class WeeklyCalendarViewModel: ObservableObject {
 
         fetchScheduledOutfits { result in
             switch result {
-            case .success(let fetched):
-                self.scheduledOutfits = fetched
-                self.selectedScheduledOutfit = fetched.first {
+            case .success(let outfits):
+                self.scheduledOutfits = outfits
+                self.selectedScheduledOutfit = outfits.first {
                     self.calendarSystem.isDate($0.date, inSameDayAs: self.selectedDate)
                 }
+                PostHogSDK.shared.capture("calendar_week_loaded", properties: [
+                    "week_start": weekInterval.start.formattedShort,
+                    "scheduled_outfits_count": outfits.count
+                ])
             case .failure(let error):
                 print("Не удалось загрузить запланированные аутфиты: \(error.localizedDescription)")
+                PostHogSDK.shared.capture("calendar_week_load_failed", properties: [
+                    "error": error.localizedDescription
+                ])
             }
         }
     }
 
     func selectDate(_ date: Date) {
         selectedDate = date
-        currentWeek = currentWeek.map { day in
+        currentWeek = currentWeek.map {
             CalendarDay(
-                date: day.date,
-                isSelected: calendarSystem.isDate(day.date, inSameDayAs: date),
-                isToday: calendarSystem.isDateInToday(day.date)
+                date: $0.date,
+                isSelected: calendarSystem.isDate($0.date, inSameDayAs: date),
+                isToday: calendarSystem.isDateInToday($0.date)
             )
         }
         selectedScheduledOutfit = scheduledOutfits.first {
             calendarSystem.isDate($0.date, inSameDayAs: date)
         }
+
+        PostHogSDK.shared.capture("calendar_date_selected", properties: [
+            "selected_date": date.formattedShort,
+            "has_outfit": selectedScheduledOutfit != nil
+        ])
     }
 
     func changeWeek(by value: Int) {
         if let newDate = calendarSystem.date(byAdding: .weekOfYear, value: value, to: selectedDate) {
             selectedDate = newDate
             updateCurrentWeek()
+            PostHogSDK.shared.capture("calendar_week_changed", properties: ["offset": value])
         }
     }
 
     func fetchCalendar(completion: (() -> Void)? = nil) {
-        CalendarService.shared.fetchCalendars { result in
+        WardrobeService.shared.fetchCalendars { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let calendars):
                     self.calendar = calendars.first
                     completion?()
+                    PostHogSDK.shared.capture("calendar_loaded", properties: [
+                        "calendars_found": calendars.count
+                    ])
                 case .failure(let error):
                     print("Ошибка загрузки календаря: \(error.localizedDescription)")
+                    PostHogSDK.shared.capture("calendar_load_failed", properties: [
+                        "error": error.localizedDescription
+                    ])
                     completion?()
                 }
             }
         }
     }
 
-
     func fetchScheduledOutfits(completion: @escaping (Result<[ScheduledOutfitResponse], Error>) -> Void) {
         guard let calendarId = calendar?.id else {
-            print("Календарь ещё не загружен")
-            completion(.failure(NSError(domain: "No calendar available", code: 404)))
+            completion(.failure(NSError(domain: "No calendar", code: 404)))
             return
         }
 
-        CalendarService.shared.fetchCalendarEntries(calendarId: calendarId) { result in
+        WardrobeService.shared.fetchCalendarEntries(calendarId: calendarId) { result in
             DispatchQueue.main.async {
-                switch result {
-                case .success(let entries):
-                    print("Загружено \(entries.count) записей календаря")
-                    completion(.success(entries))
-                case .failure(let error):
-                    print("Ошибка при загрузке записей календаря: \(error.localizedDescription)")
-                    completion(.failure(error))
-                }
+                completion(result)
             }
         }
     }
@@ -126,5 +136,7 @@ class WeeklyCalendarViewModel: ObservableObject {
     func addClothingItem(name: String, image: UIImage?) {
         let newItem = ClothingItem(name: name)
         clothingItems.append(newItem)
+
+        PostHogSDK.shared.capture("calendar_item_added", properties: ["name": name])
     }
 }
